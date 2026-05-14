@@ -1,10 +1,10 @@
 import { defineConfig } from 'vitest/config'
-import svelte from '@sveltejs/vite-plugin-svelte'
+import { contentPlugin } from './src/lib/content/vite-plugin'
 
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [contentPlugin()],
   test: {
-    environment: 'jsdom',
+    environment: 'node',
     include: ['src/**/*.{test,spec}.{ts,tsx,js,jsx}'],
   },
 })

@@ -1,1 +1,0 @@
-{"name":"Archaeological Tour Guide","short_name":"Hillfort Tour","description":"Offline progressive web app for exploring archaeological sites","start_url":"/","display":"standalone","background_color":"#ffffff","theme_color":"#4a5568","lang":"en","scope":"/","icons":[{"src":"tour-icon.svg","sizes":"512x512","type":"image/svg+xml","purpose":"any maskable"}]}

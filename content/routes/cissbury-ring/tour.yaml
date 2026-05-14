@@ -1,0 +1,6 @@
+route_name: "Cissbury Ring"
+description: "A walking tour of the Iron Age hillfort."
+icon: "🪨"
+stops:
+  - "cissbury-entrance"
+  - "cissbury-summit"
