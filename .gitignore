@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+
+# Build output
+/build
+/output
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Test coverage
+coverage/
+
+# Svelte/Vite
+.svelte-kit/
+.vite/
