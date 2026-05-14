@@ -106,8 +106,6 @@ function createGeolocationStore(): Writable<GeoState> {
     subscribe: store.subscribe,
     set: store.set,
     update: store.update,
-    start: startWatching,
-    stop: stopWatching,
   }
 }
 

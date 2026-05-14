@@ -1,17 +1,16 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte"
-  import { derived } from "svelte/store"
-  import TourStop from "./lib/TourStop.svelte"
+  import TourStopComponent from "./lib/TourStop.svelte"
   import TourNav from "./lib/TourNav.svelte"
   import InterpretationToggle from "./lib/InterpretationToggle.svelte"
-  import { geolocation, createProximityStore } from "./lib/geo/store"
-  import { routes, allStops } from "virtual:tour-content"
+  import { geolocation, haversineDistance } from "./lib/geo/store"
+  import { routes } from "virtual:tour-content"
   import type { TourStopData } from "./lib/TourStop.svelte"
 
   // Current route (default to first)
   let currentRouteIndex = 0
   $: currentRoute = routes[currentRouteIndex]
-  $: stops = currentRoute ? currentRoute.stops : []
+  $: stops = currentRoute ? (currentRoute.stops as TourStopData[]) : ([] as TourStopData[])
 
   // URL-based stop navigation with hash fragments
   function getStopIdFromHash(): string | null {
@@ -32,6 +31,7 @@
   }
 
   let currentIndex = getInitialIndex()
+  $: currentStop = stops[currentIndex]
 
   function updateHashForStop(index: number) {
     const stop = stops[index]
@@ -82,26 +82,40 @@
     window.removeEventListener('hashchange', handleHashChange)
   })
 
-  $: currentStop = stops[currentIndex]
+  // Proximity calculations (computed reactively when geolocation or stops change)
+  let distances: Record<string, number> = {}
+  let nearestStopId: string | null = null
 
-  // Geolocation & proximity
-  $: proximity = createProximityStore(
-    derived(
-      () => stops,
-      ($stops) =>
-        $stops.map((s) => ({
-          id: s.id,
-          lat: s.lat ?? null,
-          lng: s.lng ?? null,
-        }))
-    )
-  )
+  $: {
+    distances = {}
+    nearestStopId = null
+    let minDistance = Infinity
 
-  $: nearestStopId = $proximity.nearestStopId
-  $: distances = $proximity.distances
-  $: isNearby = (stopId: string, radius: number = 30) => {
-    if (!distances[stopId]) return false
-    return distances[stopId] <= radius
+    const geo = $geolocation
+    if (geo.position) {
+      for (const stop of stops) {
+        if (stop.lat != null && stop.lng != null) {
+          const d = haversineDistance(
+            geo.position.lat,
+            geo.position.lng,
+            stop.lat,
+            stop.lng
+          )
+          distances[stop.id] = Math.round(d)
+
+          if (d < minDistance) {
+            minDistance = d
+            nearestStopId = stop.id
+          }
+        }
+      }
+    }
+  }
+
+  function isNearby(stopId: string, radius: number = 30): boolean {
+    const d = distances[stopId]
+    if (d === undefined) return false
+    return d <= radius
   }
 
   // Manual navigation fallback: show nearest stop button
@@ -124,18 +138,18 @@
       <p class="geo-active">
         GPS active (accuracy: {Math.round($geolocation.position.accuracy)}m)
       </p>
-      {#if nearestStopId && distances[nearestStopId]}
+      {#if nearestStopId && distances[nearestStopId] !== undefined}
         <p class="geo-nearest">
-          Nearest stop: {stops.find((s) => s.id === nearestStopId)?.title} —
+          Nearest stop: {stops.find((s: TourStopData) => s.id === nearestStopId)?.title} —
           {distances[nearestStopId]}m away
         </p>
       {/if}
-      {#if currentStop && currentStop.lat && currentStop.lng}
+      {#if currentStop && currentStop.lat != null && currentStop.lng != null}
         {#if isNearby(currentStop.id, currentStop.proximity_radius || 30)}
           <p class="geo-here pulse">You are at this stop</p>
         {:else}
           <p class="geo-distance">
-            {distances[currentStop.id] ? distances[currentStop.id] + 'm to this stop' : 'Distance unavailable'}
+            {distances[currentStop.id] !== undefined ? distances[currentStop.id] + 'm to this stop' : 'Distance unavailable'}
           </p>
         {/if}
       {/if}
@@ -146,17 +160,17 @@
     <button
       class="nearest-btn"
       on:click={() => {
-        const idx = stops.findIndex((s) => s.id === nearestStopId)
+        const idx = stops.findIndex((s: TourStopData) => s.id === nearestStopId)
         if (idx >= 0) goToStop(idx)
       }}
     >
-      Jump to nearest stop ({stops.find((s) => s.id === nearestStopId)?.title})
+      Jump to nearest stop ({stops.find((s: TourStopData) => s.id === nearestStopId)?.title})
     </button>
   {/if}
 
   <InterpretationToggle enabled={showInterpretation} onToggle={toggleInterpretation} />
 
-  <TourStop stop={currentStop} {showInterpretation} />
+  <TourStopComponent stop={currentStop} {showInterpretation} />
 
   <TourNav {currentIndex} total={stops.length} onPrev={prev} onNext={next} />
 </main>

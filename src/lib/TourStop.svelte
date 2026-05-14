@@ -1,5 +1,9 @@
 <script context="module" lang="ts">
-  import type { MediaItem } from "../content/vite-plugin"
+  export type MediaItem = {
+    type: 'image' | 'audio' | 'video' | 'model'
+    src: string
+    caption?: string
+  }
 
   export type TourStopData = {
     id: string
@@ -21,7 +25,8 @@
   export let showInterpretation: boolean = false
 
   // Register media with the service worker for offline caching
-  function registerMediaForOffline(media: MediaItem[]): void {
+  function registerMediaForOffline(): void {
+    const media = stop.media || []
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       for (const item of media) {
         navigator.serviceWorker.controller.postMessage({
@@ -34,7 +39,7 @@
 
   // Ensure media is registered for offline use
   $: if (stop && stop.media) {
-    registerMediaForOffline(stop.media)
+    registerMediaForOffline()
   }
 
   // Render markdown body
