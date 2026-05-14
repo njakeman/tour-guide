@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 375 667" width="375" height="667">
+  <rect width="375" height="667" fill="#f7fafc" />
+  <rect x="20" y="40" width="335" height="60" fill="#4a5568" rx="5" />
+  <text x="187.5" y="75" font-family="Arial" font-size="18" font-weight="bold" text-anchor="middle" fill="white">Archaeological Tour</text>
+  
+  <rect x="20" y="120" width="335" height="480" fill="white" rx="10" stroke="#e2e8f0" stroke-width="2" />
+  <text x="187.5" y="150" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#4a5568">Cissbury Ring Tour</text>
+  
+  <rect x="30" y="180" width="315" height="80" fill="#f1f5f9" rx="5" />
+  <text x="187.5" y="210" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="#4a5568">Evidence</text>
+  <text x="187.5" y="230" font-family="Arial" font-size="12" text-anchor="middle" fill="#64748b">Visible earthworks and archaeological findings</text>
+  
+  <rect x="30" y="280" width="315" height="80" fill="#f1f5f9" rx="5" />
+  <text x="187.5" y="310" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="#4a5568">Interpretation</text>
+  <text x="187.5" y="330" font-family="Arial" font-size="12" text-anchor="middle" fill="#64748b">Social and ritual significance</text>
+  
+  <rect x="20" y="520" width="335" height="50" fill="#f1f5f9" rx="25" />
+  <circle cx="80" cy="545" r="15" fill="#4a5568" />
+  <text x="187.5" y="550" font-family="Arial" font-size="14" text-anchor="middle" fill="#4a5568">Show interpretation layer</text>
+  
+  <rect x="20" y="590" width="335" height="40" fill="#f1f5f9" rx="20" />
+  <rect x="40" y="600" width="80" height="20" fill="#4a5568" rx="10" />
+  <text x="80" y="615" font-family="Arial" font-size="12" text-anchor="middle" fill="white">Previous</text>
+  <text x="187.5" y="615" font-family="Arial" font-size="12" text-anchor="middle" fill="#4a5568">Stop 1 of 2</text>
+  <rect x="275" y="600" width="80" height="20" fill="#4a5568" rx="10" />
+  <text x="315" y="615" font-family="Arial" font-size="12" text-anchor="middle" fill="white">Next</text>
+</svg>
