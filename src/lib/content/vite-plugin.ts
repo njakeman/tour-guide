@@ -1,4 +1,4 @@
-import type { Plugin } from 'vite'
+import type { Plugin, ResolvedConfig } from 'vite'
 import { readdirSync, readFileSync, existsSync } from 'fs'
 import { join, resolve, basename } from 'path'
 import matter from 'gray-matter'
@@ -8,6 +8,28 @@ import type { TourStop, TourRoute, MediaItem, HeroImage } from '../types'
 
 // Re-export types so virtual-content.d.ts can reference them from this file too
 export type { TourStop, TourRoute, MediaItem, HeroImage }
+
+// ---------------------------------------------------------------------------
+// Base-path handling
+// Captured from Vite's resolved config so that absolute content paths like
+// /tours/cissbury-ring/entrance.png are correctly prefixed when the app is
+// served from a sub-path (e.g. /tour-guide/ on GitHub Pages).
+// Authors keep writing /tours/… — the plugin rewrites at build time.
+// ---------------------------------------------------------------------------
+let assetBase = '/'
+
+/**
+ * Prepend the Vite base to a root-relative path (e.g. /tours/x.png →
+ * /tour-guide/tours/x.png). External URLs and data URIs are left unchanged.
+ */
+function withBase(href: string): string {
+  if (!href) return href
+  if (/^(https?:)?\/\//.test(href) || href.startsWith('data:')) return href
+  // Already has the correct base (idempotent guard)
+  const base = assetBase.replace(/\/$/, '')
+  if (base && href.startsWith(base + '/')) return href
+  return base + '/' + href.replace(/^\//, '')
+}
 
 // ---------------------------------------------------------------------------
 // Marked instance with custom media renderer
@@ -22,23 +44,24 @@ const MODEL_EXTS = new Set(['glb', 'gltf'])
 const markedInstance = new Marked({
   renderer: {
     image({ href = '', text = '' }: { href?: string; text?: string; title?: string | null }) {
+      const src = withBase(href)
       const ext = href.split('.').pop()?.toLowerCase() ?? ''
       const cap = text ? `<figcaption>${text}</figcaption>` : ''
 
       if (AUDIO_EXTS.has(ext)) {
-        return `<figure class="media-audio"><audio controls preload="metadata"><source src="${href}" /></audio>${cap}</figure>`
+        return `<figure class="media-audio"><audio controls preload="metadata"><source src="${src}" /></audio>${cap}</figure>`
       }
       if (VIDEO_EXTS.has(ext)) {
-        return `<figure class="media-video"><video controls preload="metadata" playsinline><source src="${href}" /></video>${cap}</figure>`
+        return `<figure class="media-video"><video controls preload="metadata" playsinline><source src="${src}" /></video>${cap}</figure>`
       }
       if (MODEL_EXTS.has(ext)) {
-        return `<div class="media-model" data-src="${href}" data-caption="${text}"><span class="model-stub" aria-label="3D model">⬡</span><p class="model-label">${href.split('/').pop() ?? '3D model'}</p>${cap}</div>`
+        return `<div class="media-model" data-src="${src}" data-caption="${text}"><span class="model-stub" aria-label="3D model">⬡</span><p class="model-label">${href.split('/').pop() ?? '3D model'}</p>${cap}</div>`
       }
       if (IMAGE_EXTS.has(ext)) {
-        return `<figure class="media-img"><img src="${href}" alt="${text}" loading="lazy" />${cap}</figure>`
+        return `<figure class="media-img"><img src="${src}" alt="${text}" loading="lazy" />${cap}</figure>`
       }
       // Fallback: treat as image
-      return `<figure class="media-img"><img src="${href}" alt="${text}" loading="lazy" />${cap}</figure>`
+      return `<figure class="media-img"><img src="${src}" alt="${text}" loading="lazy" />${cap}</figure>`
     },
   },
 })
@@ -120,6 +143,12 @@ function loadTourRoute(routeDir: string): TourRoute {
     // Render markdown body to HTML at build time
     const bodyHtml = markedInstance.parse(parsed.content ?? '') as string
 
+    // Rewrite hero.src with the base path so it resolves correctly on
+    // sub-path hosts (e.g. /tour-guide/tours/… on GitHub Pages).
+    const hero: HeroImage | undefined = front.hero
+      ? { ...front.hero, src: withBase(front.hero.src) }
+      : undefined
+
     stops.push({
       id: front.id ?? stopId,
       title: front.title ?? 'Untitled Stop',
@@ -134,7 +163,7 @@ function loadTourRoute(routeDir: string): TourRoute {
       interpretation: front.interpretation ?? '',
       bodyHtml,
       media: front.media ?? [],
-      hero: front.hero,
+      hero,
     })
   }
 
@@ -188,6 +217,11 @@ export function contentPlugin(): Plugin {
 
   return {
     name: 'tour-content',
+    configResolved(config: ResolvedConfig) {
+      // Capture the resolved base so withBase() prefixes correctly.
+      // Defaults to '/' for local dev and root-serving hosts.
+      assetBase = config.base ?? '/'
+    },
     resolveId(id) {
       if (id === virtualModuleId) return resolvedVirtualModuleId
     },

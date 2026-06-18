@@ -5,6 +5,10 @@ import { contentPlugin } from './src/lib/content/vite-plugin'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Set BASE_PATH env var when serving from a sub-path (e.g. GitHub Pages):
+  //   BASE_PATH=/tour-guide/ npm run build
+  // Root-serving hosts (Netlify, Vercel) need no override.
+  base: process.env.BASE_PATH ?? '/',
   plugins: [
     contentPlugin(),
     svelte(),
@@ -23,17 +27,19 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: '/icon-192x192.png',
+            // Relative (no leading slash) so vite-plugin-pwa resolves against
+            // the manifest's own URL, which already includes the base path.
+            src: 'icon-192x192.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: '/icon-512x512.png',
+            src: 'icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
           },
           {
-            src: '/icon-512x512.png',
+            src: 'icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',

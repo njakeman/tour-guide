@@ -91,88 +91,58 @@ files need to change. The active theme persists to `localStorage`.
 
 The build outputs a static site in `dist/`. It works on any static host.
 
-### Configure the base path
+### Base-path awareness
 
-If your site is not at the root of a domain (e.g. `https://example.com/tour/` instead of `https://example.com/`), set `base` in `vite.config.ts`:
-
-```ts
-export default defineConfig({
-  base: '/tour/',   // ← add this line
-  plugins: [ … ],
-})
-```
-
-Leave it unset (or `'/'`) for root-domain hosting.
-
-### GitHub Pages
-
-**Method A — manual**
+The app is base-path-aware out of the box. Set the `BASE_PATH` environment variable at build time
+when serving from a sub-path (e.g. GitHub Pages). Leave it unset for root-domain hosts.
 
 ```bash
+# Root-domain host (Netlify, Vercel, custom domain)
 npm run build
-# Push dist/ to your gh-pages branch, or drag-drop to the Pages upload UI
+
+# Sub-path host (GitHub Pages at /<repo>/)
+BASE_PATH=/tour-guide/ npm run build
 ```
 
-**Method B — GitHub Actions (recommended)**
+All tour media paths (`/tours/…`) are prefixed automatically by the content pipeline — you never
+need to change the paths in your markdown or frontmatter.
 
-Create `.github/workflows/deploy.yml`:
+### GitHub Pages (auto-deploy)
 
-```yaml
-name: Deploy
-on:
-  push:
-    branches: [main]
+A workflow is included at `.github/workflows/deploy.yml`. It triggers on every push to `main`,
+generates demo media, builds with the correct base path, and deploys to Pages.
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-      - id: deployment
-        uses: actions/deploy-pages@v4
-```
+**One-time setup:** go to **Settings → Pages → Source → GitHub Actions**.
 
-Then go to **Settings → Pages → Source → GitHub Actions**.
-
-If the repo is at `github.com/<user>/<repo>` and Pages serves it at `https://<user>.github.io/<repo>/`, set `base: '/<repo>/'` in `vite.config.ts`.
+After that, every `git push origin main` deploys automatically. Your live URL will be:
+`https://<your-username>.github.io/tour-guide/`
 
 ### Netlify
 
+**Drag-and-drop (instant, no account connection needed):**
 ```bash
-npm run build
-# Drag-drop dist/ onto app.netlify.com/drop, or connect the repo via the Netlify UI.
+npm run demo:seed && npm run build
+# Drop the dist/ folder onto app.netlify.com/drop
 ```
 
-With repo-connected auto-deploy, set:
-
-- **Build command:** `npm run build`
+**Repo-connected auto-deploy:**
+- **Build command:** `npm run demo:seed && npm run build`
 - **Publish directory:** `dist`
+- No base-path override needed (Netlify serves at root).
 
-No `_redirects` file is needed — the PWA uses hash routing so there are no server-side path redirects required.
+No `_redirects` file is needed — the PWA uses hash routing.
 
 ### Vercel
 
+**Drag-and-drop:**
 ```bash
+npm run demo:seed && npm run build
 npm i -g vercel
-vercel --prod
+vercel --prod   # point at the dist/ folder when prompted
 ```
 
-Or connect the GitHub repo in the Vercel dashboard. Build preset: **Vite**.
+**Repo-connected:** connect the GitHub repo in the Vercel dashboard, build preset **Vite**, build
+command `npm run demo:seed && npm run build`. No base-path override needed.
 
 ---
 
