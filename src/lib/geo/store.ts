@@ -1,4 +1,4 @@
-import { writable, readable, derived, type Readable, type Writable } from 'svelte/store'
+import { writable, derived, type Readable } from 'svelte/store'
 
 export type GeoPosition = {
   lat: number
@@ -20,7 +20,7 @@ export type GeoState = {
 }
 
 /**
- * Haversine distance between two lat/lng points in meters
+ * Haversine great-circle distance between two lat/lng points, in metres.
  */
 export function haversineDistance(
   lat1: number,
@@ -28,122 +28,117 @@ export function haversineDistance(
   lat2: number,
   lng2: number
 ): number {
-  const R = 6371e3 // Earth radius in meters
+  const R = 6371e3
   const φ1 = (lat1 * Math.PI) / 180
   const φ2 = (lat2 * Math.PI) / 180
   const Δφ = ((lat2 - lat1) * Math.PI) / 180
   const Δλ = ((lng2 - lng1) * Math.PI) / 180
-
   const a =
     Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
     Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-
-  return R * c
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
 /**
- * Svelte store that tracks browser geolocation
+ * Returns true when the user is within `radius` metres of a stop,
+ * and the GPS accuracy is good enough to be meaningful
+ * (accuracy must be < 2× the radius).
  */
-function createGeolocationStore(): Writable<GeoState> {
+export function isNearby(distance: number, radius: number, accuracy: number): boolean {
+  if (accuracy > radius * 2) return false
+  return distance <= radius
+}
+
+/**
+ * Svelte store that tracks browser geolocation with a fast seed
+ * (`getCurrentPosition`) before the continuous `watchPosition`.
+ */
+function createGeolocationStore() {
   const store = writable<GeoState>({
     position: null,
     error: null,
     loading: true,
-    available: 'geolocation' in navigator,
+    available: typeof navigator !== 'undefined' && 'geolocation' in navigator,
   })
 
-  if (!('geolocation' in navigator)) {
+  if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
     store.update((s) => ({ ...s, loading: false }))
     return store
   }
 
-  let watchId: number | null = null
+  const opts: PositionOptions = {
+    enableHighAccuracy: true,
+    maximumAge: 30_000,
+    timeout: 10_000,
+  }
 
-  function startWatching() {
-    store.update((s) => ({ ...s, loading: true, error: null }))
-
-    watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        store.update((s) => ({
-          ...s,
-          position: {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
-            timestamp: pos.timestamp,
-          },
-          loading: false,
-          error: null,
-        }))
+  function onSuccess(pos: GeolocationPosition) {
+    store.update((s) => ({
+      ...s,
+      position: {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+        timestamp: pos.timestamp,
       },
-      (err) => {
-        store.update((s) => ({
-          ...s,
-          error: { code: err.code, message: err.message },
-          loading: false,
-        }))
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 30000,
-        timeout: 10000,
-      }
-    )
+      loading: false,
+      error: null,
+    }))
   }
 
-  function stopWatching() {
-    if (watchId !== null) {
-      navigator.geolocation.clearWatch(watchId)
-      watchId = null
-    }
+  function onError(err: GeolocationPositionError) {
+    store.update((s) => ({
+      ...s,
+      error: { code: err.code, message: err.message },
+      loading: false,
+    }))
   }
 
-  // Auto-start watching
-  startWatching()
+  // Fast seed: get an immediate fix, then watch for updates
+  navigator.geolocation.getCurrentPosition(onSuccess, onError, opts)
+  navigator.geolocation.watchPosition(onSuccess, onError, opts)
 
-  return {
-    subscribe: store.subscribe,
-    set: store.set,
-    update: store.update,
-  }
+  return store
 }
 
 export const geolocation = createGeolocationStore()
 
+// ---------------------------------------------------------------------------
+// Derived proximity store
+// ---------------------------------------------------------------------------
+type StopLike = { id: string; lat: number | null; lng: number | null; proximity_radius: number }
+
+export type ProximityResult = {
+  distances: Record<string, number>
+  nearestStopId: string | null
+  minDistance: number
+}
+
 /**
- * Derived store that calculates distances to each stop and identifies nearest
+ * Derived store that calculates distances to all stops and identifies the nearest.
+ * Pass a Readable<StopLike[]> so this updates whenever either geo or stops change.
  */
-export function createProximityStore(stops: Readable<{ lat: number | null; lng: number | null; id: string }[]>) {
-  return derived(
-    [geolocation, stops],
-    ([$geo, $stops]) => {
-      if (!$geo.position || !$stops) {
-        return { distances: {}, nearestStopId: null }
-      }
+export function createProximityStore(stops: Readable<StopLike[]>) {
+  return derived([geolocation, stops], ([$geo, $stops]): ProximityResult => {
+    if (!$geo.position || !$stops?.length) {
+      return { distances: {}, nearestStopId: null, minDistance: Infinity }
+    }
 
-      const distances: Record<string, number> = {}
-      let nearestStopId: string | null = null
-      let minDistance = Infinity
+    const distances: Record<string, number> = {}
+    let nearestStopId: string | null = null
+    let minDistance = Infinity
 
-      for (const stop of $stops) {
-        if (stop.lat !== null && stop.lng !== null) {
-          const d = haversineDistance(
-            $geo.position.lat,
-            $geo.position.lng,
-            stop.lat,
-            stop.lng
-          )
-          distances[stop.id] = Math.round(d)
-
-          if (d < minDistance) {
-            minDistance = d
-            nearestStopId = stop.id
-          }
+    for (const stop of $stops) {
+      if (stop.lat !== null && stop.lng !== null) {
+        const d = haversineDistance($geo.position.lat, $geo.position.lng, stop.lat, stop.lng)
+        distances[stop.id] = Math.round(d)
+        if (d < minDistance) {
+          minDistance = d
+          nearestStopId = stop.id
         }
       }
-
-      return { distances, nearestStopId, minDistance }
     }
-  )
+
+    return { distances, nearestStopId, minDistance }
+  })
 }

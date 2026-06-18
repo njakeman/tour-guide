@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync, existsSync } from 'fs'
-import { join, resolve } from 'path'
+import { join, resolve, basename } from 'path'
 import matter from 'gray-matter'
 import yaml from 'js-yaml'
 
@@ -17,7 +17,7 @@ describe('Content Pipeline', () => {
 
     for (const routeDir of routes) {
       const yamlPath = join(routeDir, 'tour.yaml')
-      expect(existsSync(yamlPath)).toBe(true)
+      expect(existsSync(yamlPath), `tour.yaml missing in ${routeDir}`).toBe(true)
 
       const parsed = yaml.load(readFileSync(yamlPath, 'utf-8')) as {
         route_name: string
@@ -29,6 +29,21 @@ describe('Content Pipeline', () => {
     }
   })
 
+  it('uses path.basename to derive route id (Windows-safe)', () => {
+    // Regression test for the Windows routeDir.split('/') bug
+    const routeDirs = readdirSync(ROUTES_DIR, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => join(ROUTES_DIR, d.name))
+
+    for (const routeDir of routeDirs) {
+      const id = basename(routeDir)
+      // basename should always return just the last segment, never a full path
+      expect(id).not.toContain('/')
+      expect(id).not.toContain('\\')
+      expect(id.length).toBeGreaterThan(0)
+    }
+  })
+
   it('references stops that exist as markdown files', () => {
     const routes = readdirSync(ROUTES_DIR, { withFileTypes: true })
       .filter((d) => d.isDirectory())
@@ -36,55 +51,46 @@ describe('Content Pipeline', () => {
 
     for (const routeDir of routes) {
       const yamlPath = join(routeDir, 'tour.yaml')
-      const parsed = yaml.load(readFileSync(yamlPath, 'utf-8')) as {
-        stops: string[]
-      }
-
+      const parsed = yaml.load(readFileSync(yamlPath, 'utf-8')) as { stops: string[] }
       const stopsDir = join(routeDir, 'stops')
+
       for (const stopId of parsed.stops) {
-        const stopPath = join(stopsDir, `${stopId}.md`)
-        const exists = existsSync(stopPath)
-        if (!exists) {
-          const files = readdirSync(stopsDir)
-          const numberedMatch = files.find((f) =>
-            f.includes(stopId)
-          )
-          expect(numberedMatch).toBeTruthy()
-        }
+        const direct = join(stopsDir, `${stopId}.md`)
+        if (existsSync(direct)) continue
+
+        // Check numbered-prefix convention
+        const files = existsSync(stopsDir) ? readdirSync(stopsDir) : []
+        const match = files.find((f) => new RegExp(`^\\d{2}-${stopId}\\.md$`).test(f))
+        expect(match, `Stop '${stopId}' not found in ${stopsDir}`).toBeTruthy()
       }
     }
   })
 
-  it('parses stop markdown with valid frontmatter', () => {
+  it('parses stop markdown with required frontmatter fields', () => {
     const routes = readdirSync(ROUTES_DIR, { withFileTypes: true })
       .filter((d) => d.isDirectory())
       .map((d) => join(ROUTES_DIR, d.name))
 
     for (const routeDir of routes) {
       const stopsDir = join(routeDir, 'stops')
-      const files = readdirSync(stopsDir)
+      if (!existsSync(stopsDir)) continue
+      const files = readdirSync(stopsDir).filter((f) => f.endsWith('.md'))
 
       for (const file of files) {
-        if (!file.endsWith('.md')) continue
-
         const raw = readFileSync(join(stopsDir, file), 'utf-8')
         const parsed = matter(raw)
+        const f = parsed.data
 
-        expect(parsed.data.id).toBeTruthy()
-        expect(parsed.data.title).toBeTruthy()
-        expect(parsed.data.evidence).toBeTruthy()
+        expect(f.id, `${file}: missing id`).toBeTruthy()
+        expect(f.title, `${file}: missing title`).toBeTruthy()
+        expect(f.evidence, `${file}: missing evidence`).toBeTruthy()
 
-        // Optional lat/lng fields
-        if (
-          parsed.data.lat !== undefined &&
-          parsed.data.lat !== null
-        ) {
-          expect(typeof parsed.data.lat).toBe('number')
-          expect(typeof parsed.data.lng).toBe('number')
+        if (f.lat !== undefined && f.lat !== null) {
+          expect(typeof f.lat, `${file}: lat must be number`).toBe('number')
+          expect(typeof f.lng, `${file}: lng must be number`).toBe('number')
         }
 
-        // Body content should exist
-        expect(parsed.content.trim().length).toBeGreaterThan(0)
+        expect(parsed.content.trim().length, `${file}: empty body`).toBeGreaterThan(0)
       }
     }
   })

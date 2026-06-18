@@ -1,79 +1,224 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+/* ============================================================
+   fieldWorks — global design tokens + reset
+   Theme is applied via data-theme="light|dark|night" on <html>
+   ============================================================ */
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+/* ── Light (default) ── */
+:root,
+[data-theme="light"] {
+  /* Surfaces */
+  --bg:           #f3eede;
+  --surface:      #fbf7ec;
+  --surface-2:    #eae3d2;
+  --surface-3:    #efe9da;
+  --footer-bg:    #efe9da;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Borders */
+  --border:       #d8cfb8;
+  --border-2:     #e0d7c1;
+
+  /* Text */
+  --text:         #26241f;
+  --text-body:    #322e25;
+  --muted:        #5b5340;
+  --muted-2:      #4d4636;
+  --chip-text:    #3f392c;
+
+  /* Brand accents */
+  --accent:       #b06a33;  /* ochre — primary action, eyebrow active */
+  --accent-btn:   #b06a33;
+  --accent-btn-text: #fbf6ea;
+  --eyebrow:      #8a4f22;
+  --olive:        #6e7551;  /* GPS ping, "done" state */
+
+  /* Progress / status */
+  --progress-done: #b06a33;
+  --progress-todo: #ddd3bd;
+
+  /* Status bar */
+  --status-text:  #2b2820;
+
+  /* Hero plate */
+  --plate-grad: linear-gradient(180deg, #dcc89c 0%, #cdb585 30%, #9a8c5d 55%, #7c7a4e 78%, #5f6b43 100%);
+  --plate-stroke: #4a4327;
+
+  /* Map bg */
+  --map-bg:       #e8e0cc;
+  --map-fill:     #e6ddc8;
+  --map-stroke:   #c2b491;
+  --map-route:    #b06a33;
+  --pin-done:     #6e7551;
+  --pin-current:  #b06a33;
+  --pin-todo-bg:  #cabfa3;
+  --pin-todo-fg:  #3f392c;
+
+  /* Fonts */
+  --font-serif:   'Spectral', Georgia, serif;
+  --font-sans:    'Hanken Grotesk', system-ui, sans-serif;
+  --font-mono:    'Spline Sans Mono', 'Courier New', monospace;
+
+  color-scheme: light;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+/* ── Dark ── */
+[data-theme="dark"] {
+  --bg:           #15160f;
+  --surface:      #1d1e16;
+  --surface-2:    #23241c;
+  --surface-3:    #1a1b13;
+  --footer-bg:    #1a1b13;
+
+  --border:       #34352c;
+  --border-2:     #2c2d23;
+
+  --text:         #ece6d6;
+  --text-body:    #ddd6c4;
+  --muted:        #a39c8a;
+  --muted-2:      #b7b09d;
+  --chip-text:    #c8c1ad;
+
+  --accent:       #d69156;
+  --accent-btn:   #c47a3e;
+  --accent-btn-text: #1a120a;
+  --eyebrow:      #d69156;
+  --olive:        #9aa06f;
+
+  --progress-done: #d69156;
+  --progress-todo: #34352c;
+
+  --status-text:  #ece6d6;
+
+  --plate-grad: linear-gradient(180deg, #3a3526 0%, #312d20 28%, #2a2c1f 56%, #23271a 80%, #1b1f15 100%);
+  --plate-stroke: #d69156;
+
+  --map-bg:       #23241c;
+  --map-fill:     #1d1e16;
+  --map-stroke:   #34352c;
+  --map-route:    #c47a3e;
+  --pin-done:     #9aa06f;
+  --pin-current:  #c47a3e;
+  --pin-todo-bg:  #34352c;
+  --pin-todo-fg:  #a39c8a;
+
+  color-scheme: dark;
 }
-a:hover {
-  color: #535bf2;
+
+/* ── Night (red-light, dark-adapted) ── */
+[data-theme="night"] {
+  --bg:           #0c0603;
+  --surface:      #190c06;
+  --surface-2:    #160b06;
+  --surface-3:    #120804;
+  --footer-bg:    #120804;
+
+  --border:       #3a1c0e;
+  --border-2:     #2c1609;
+
+  --text:         #d9692f;
+  --text-body:    #bd6230;
+  --muted:        #955025;
+  --muted-2:      #a85428;
+  --chip-text:    #b5582a;
+
+  --accent:       #cf5f2c;
+  --accent-btn:   #a8431c;
+  --accent-btn-text: #f4cba2;
+  --eyebrow:      #cf5f2c;
+  --olive:        #c25a28;
+
+  --progress-done: #cf5f2c;
+  --progress-todo: #3a1c0e;
+
+  --status-text:  #b85a2a;
+
+  --plate-grad: linear-gradient(180deg, #241308 0%, #1d0f06 28%, #190c05 56%, #140904 80%, #0f0603 100%);
+  --plate-stroke: #c25a28;
+
+  --map-bg:       #190c06;
+  --map-fill:     #0c0603;
+  --map-stroke:   #3a1c0e;
+  --map-route:    #a8431c;
+  --pin-done:     #8a3818;
+  --pin-current:  #a8431c;
+  --pin-todo-bg:  #3a1c0e;
+  --pin-todo-fg:  #955025;
+
+  color-scheme: dark;
+}
+
+/* ============================================================
+   Reset & base
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  /* Allow safe-area insets on notched devices */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-.card {
-  padding: 2em;
+  min-height: 100dvh;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
-button {
+/* ============================================================
+   Proximity pulse animation (GPS ping)
+   ============================================================ */
+@keyframes tg-pulse {
+  0%   { transform: scale(1);   opacity: 0.9; }
+  70%  { transform: scale(2.4); opacity: 0;   }
+  100% { opacity: 0; }
+}
+
+/* ============================================================
+   Utility: Spline Sans Mono label chips
+   ============================================================ */
+.chip {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: var(--chip-text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 6px 11px;
   border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  white-space: nowrap;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+.pill {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   Focus styles (accessible)
+   ============================================================ */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }

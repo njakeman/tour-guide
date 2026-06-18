@@ -1,265 +1,352 @@
-# Tour Guide PWA
+# fieldWorks
 
-An offline-first progressive web app for delivering location-aware walking tours. Designed for archaeological sites, historic landscapes, and heritage trails.
+An offline-first PWA for handheld walking tours — hillforts, henges, barrows, and heritage trails. Tours are authored in Markdown, work without a network connection once installed, and install directly to an iOS or Android home screen.
 
-## Features
+Built with Svelte 5 · Vite 7 · vite-plugin-pwa / Workbox · three-way Light / Dark / Night theming.
 
-- **Offline-first**: All content and media bundled into the PWA — works without mobile signal
-- **Markdown content**: Tour stops written as individual `.md` files with YAML frontmatter
-- **Geolocation-aware**: Highlights nearest stop via GPS with proximity detection
-- **Manual fallback**: Sequential navigation with back/forward button support when GPS is unavailable
-- **Rich media**: Support for images, audio narration, video, and 3D models per stop
-- **Multiple routes**: Each tour is a separate route; stops can be shared across routes
-- **URL routing**: Hash-based URLs (`#stop=stop-id`) enable bookmarking and browser history
+---
 
-## Architecture
+## Quick start
+
+Requires **Node.js 20+**.
+
+```bash
+npm install        # install dependencies
+npm run dev        # dev server at http://localhost:5173
+npm test           # run unit tests (vitest)
+npm run check      # type-check (svelte-check + tsc)
+npm run build      # production build → dist/
+npm run preview    # serve dist/ locally to test PWA
+```
+
+---
+
+## Project structure
 
 ```
-content/                          # Tour content (markdown + YAML)
+content/                      # Tour content — edit this to add tours
 ├── routes/
-│   └── cissbury-ring/            # One directory per tour route
-│       ├── tour.yaml             # Route manifest: name, description, icon, stops list
-│       └── stops/                # Individual stop markdown files
+│   └── cissbury-ring/
+│       ├── tour.yaml         # Route manifest
+│       └── stops/
 │           ├── cissbury-entrance.md
 │           └── cissbury-summit.md
-└── shared/
-    └── stops/                    # Reusable stops across routes
 
-public/                           # Static assets (icons, media precached by SW)
+public/                       # Static assets served as-is
+└── tours/
+    └── cissbury-ring/        # Media for each route
+        ├── entrance.jpg
+        └── narration.mp3
+
 src/
 ├── lib/
 │   ├── content/
-│   │   └── vite-plugin.ts        # Vite plugin: loads markdown as typed JSON at build time
+│   │   └── vite-plugin.ts    # Build-time content pipeline
 │   ├── geo/
-│   │   └── store.ts              # Svelte geolocation store with Haversine distance
-│   ├── TourStop.svelte           # Stop renderer: markdown body, evidence, interpretation, media
-│   └── TourNav.svelte            # Sequential prev/next navigation
-├── App.svelte                    # Root: route selector, geolocation status, proximity UI
-└── main.ts                       # PWA service worker registration
+│   │   └── store.ts          # Geolocation + Haversine proximity
+│   ├── theme/
+│   │   └── store.ts          # Light / Dark / Night theme store
+│   ├── media/
+│   │   └── ModelViewer.svelte
+│   ├── types.ts              # Shared TypeScript types
+│   ├── TourLibrary.svelte    # Home screen — tour cards
+│   ├── RouteMap.svelte       # Route overview — inline SVG map
+│   ├── TourStop.svelte       # Stop screen — content + media + proximity
+│   ├── HengeLogo.svelte      # Brand mark
+│   └── ThemeToggle.svelte    # Light → Dark → Night toggle
+├── App.svelte                # Hash router
+└── main.ts                   # Entry point + PWA registration
 
-vite.config.ts                    # Vite + content plugin + PWA generation
-vitest.config.ts                  # Test config (Vitest, node environment)
+vite.config.ts                # Vite + content plugin + PWA config
 ```
 
-## Quick Start
+---
 
-Requires **Node.js 20+** (tested on v22 LTS).
+## Authoring a tour
 
-```bash
-# Install dependencies
-npm install
+### 1 · Create the route folder
 
-# Start development server with hot reload
-npm run dev
-
-# Run unit tests
-npm test
-
-# Type check
-npm run check
-
-# Production build (generates PWA assets in dist/)
-npm run build
-
-# Preview production build locally
-npm run preview
+```
+content/routes/<route-id>/
+    tour.yaml
+    stops/
+        01-first-stop.md
+        02-second-stop.md
 ```
 
-## Content Authoring Guide
+The folder name (`<route-id>`) becomes the tour's internal ID. Stop files can be named anything; they are picked up in alphabetical order if a numbered prefix (`01-`, `02-`, …) is used.
 
-### 1. Create a new route
-
-Create a directory under `content/routes/<route-id>/` with:
-
-- `tour.yaml` — route manifest
-- `stops/` — individual stop `.md` files
-
-#### tour.yaml
+### 2 · Write `tour.yaml`
 
 ```yaml
 route_name: "Cissbury Ring"
-description: "A walking tour of the Iron Age hillfort."
+subtitle: "Iron Age Hillfort · South Downs"      # shown in the route header
+description: "England's second-largest Iron Age hillfort, raised over Neolithic flint mines."
 icon: "🪨"
+total_distance: "2.4 km"                         # optional meta chip
+duration: "~70 min"                              # optional meta chip
 stops:
-  - "cissbury-entrance"
+  - "cissbury-entrance"                          # matches stop id: in frontmatter
   - "cissbury-summit"
 ```
 
-The `stops` list references stop files by ID (without `.md` extension). The build system looks for:
-1. `content/routes/cissbury-ring/stops/<id>.md`
-2. `content/shared/stops/<id>.md` (for reusable stops)
+| Field | Required | Notes |
+|---|---|---|
+| `route_name` | ✓ | Display name |
+| `description` | ✓ | Shown on the tour card |
+| `icon` | ✓ | Emoji used as a fallback thumbnail label |
+| `subtitle` | | Short descriptor (period, location) |
+| `total_distance` | | Displayed as a chip |
+| `duration` | | Displayed as a chip |
+| `stops` | ✓ | Ordered list of stop IDs |
 
-### 2. Write a stop
+### 3 · Write a stop file
 
-Each stop is a markdown file with YAML frontmatter:
+Each stop is a Markdown file. The filename must include the stop ID — either as the whole filename (`cissbury-entrance.md`) or with a numbered prefix (`01-cissbury-entrance.md`). The YAML frontmatter `id:` field must match the ID listed in `tour.yaml`.
 
 ```markdown
 ---
 id: cissbury-entrance
-title: "Cissbury Ring: Approach and Enclosure"
+title: "The Entrance Causeway"
+era: "Iron Age hillfort · c. 400 BC"      # eyebrow label shown above the title
+grid_ref: "TQ 139 080"                    # meta chip
+elevation: "156m AOD"                     # meta chip
+walk_time: "start here"                   # shown next to upcoming stops on the route map
 lat: 50.8561
 lng: -0.3790
-proximity_radius: 50
-media:
-  - type: image
-    src: "/tours/cissbury-ring/entrance.jpg"
-    caption: "The defensive bank and ditch on approach"
-  - type: audio
-    src: "/tours/cissbury-ring/narration.mp3"
-    caption: "Expert narration by Dr. Smith"
+proximity_radius: 50                      # metres — triggers the GPS arrival ping
+hero:
+  src: "/tours/cissbury-ring/entrance.jpg"
+  caption: "West entrance · looking north"
 evidence: |
   Visible earthworks define a substantial enclosure on the hilltop.
 interpretation: |
-  The scale and prominence may have supported gatherings, signalling, or socially meaningful movement.
+  The scale and prominence may have supported gatherings, signalling, or movement through the landscape.
 ---
 
-# Approach and Enclosure
+The main body of the stop is standard Markdown.
 
-You are now approaching Cissbury Ring, one of the largest hillforts in Sussex...
+Inline media is embedded using standard image syntax — the build pipeline
+chooses the right HTML element from the file extension:
 
-## Look Out For
+![A photo caption](entrance.jpg)          ← becomes <img loading="lazy">
+![Audio description](narration.mp3)       ← becomes <audio controls>
+![Video caption](drone.mp4)               ← becomes <video playsinline controls>
+![3D model label](fort.glb)               ← becomes a styled 3D stub
 
-- The double bank-and-ditch on the southern approach
-- Flint mining pits from earlier Neolithic activity
-
-> "Hillforts are not just defensive structures—they are statements of community."
-
-Continue along the path to reach the main enclosure.
+Relative paths resolve from the route's media folder in `public/tours/<route-id>/`.
+Absolute paths (`/tours/cissbury-ring/...`) also work.
 ```
 
-#### Frontmatter fields
+#### Frontmatter reference
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | string | Yes | Unique stop identifier |
-| `title` | string | Yes | Display title |
-| `lat` | number | No | Latitude for geolocation |
-| `lng` | number | No | Longitude for geolocation |
-| `proximity_radius` | number | No | "Nearby" threshold in metres (default: 30) |
-| `media` | array | No | List of media objects |
-| `evidence` | string | No | Click-to-reveal archaeological evidence |
-| `interpretation` | string | No | Click-to-reveal expert interpretation |
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | string | ✓ | Must match the entry in `tour.yaml` |
+| `title` | string | ✓ | Displayed as the stop heading |
+| `lat` / `lng` | number | | GPS coordinates; omit for stops with no fixed location |
+| `proximity_radius` | number | | Metres to trigger arrival ping (default: 30) |
+| `era` | string | | Eyebrow label above the title (e.g. "Neolithic · 3500 BC") |
+| `grid_ref` | string | | OS grid reference shown as a chip |
+| `elevation` | string | | Shown as a chip (e.g. "156m AOD") |
+| `walk_time` | string | | Walking time from previous stop; shown on the route map |
+| `hero` | object | | `{ src, caption }` — large image at the top of the stop |
+| `evidence` | string | | Collapsible **Evidence** accordion (observable facts) |
+| `interpretation` | string | | Collapsible **Interpretation** accordion (analysis) |
 
-#### Media types
+### 4 · Add media files
 
-```yaml
-media:
-  - type: image
-    src: "/tours/cissbury-ring/photo.jpg"
-    caption: "View from the entrance"
-  - type: audio
-    src: "/tours/cissbury-ring/narration.mp3"
-    caption: "Audio commentary"
-  - type: video
-    src: "/tours/cissbury-ring/drone.mp4"
-    caption: "Drone footage"
-  - type: model
-    src: "/tours/cissbury-ring/fort.glb"
-    caption: "3D reconstruction"
-```
-
-**Important**: Media files under `public/tours/` are automatically included in the PWA precache manifest and will be available offline.
-
-### 3. Add media files
-
-Place images, audio, video, and 3D models in the `public/tours/<route>/` directory:
+Place media in `public/tours/<route-id>/`:
 
 ```
 public/
 └── tours/
     └── cissbury-ring/
-        ├── entrance.jpg
-        ├── narration.mp3
-        └── fort.glb
+        ├── entrance.jpg     ← hero image or inline image
+        ├── narration.mp3    ← audio commentary
+        ├── drone.mp4        ← video
+        └── fort.glb         ← 3D model (stub rendered, viewer TBD)
 ```
 
-### 4. Build and test
+Files in `public/` are served at `/` in the browser. The service worker precaches everything under `public/tours/` so it works offline once visited.
 
-```bash
-npm run build    # Compiles markdown → JSON, bundles media into PWA
-npm run preview  # Verify offline mode works
-```
+#### Supported media types
+
+| Extension | Rendered as |
+|---|---|
+| `.jpg` `.jpeg` `.png` `.webp` `.gif` | `<img loading="lazy">` |
+| `.mp3` `.ogg` `.wav` | `<audio controls>` |
+| `.mp4` `.webm` | `<video playsinline controls>` |
+| `.glb` `.gltf` | Styled placeholder (3D viewer stub) |
+
+---
+
+## Themes
+
+The app ships with three themes toggled by the sun/moon button in the header:
+
+| Theme | Use case |
+|---|---|
+| **Light** | Daytime — warm parchment tones |
+| **Dark** | Evening — low-glare dark surfaces |
+| **Night** | Fieldwork after dark — red-amber only; preserves night vision |
+
+The active theme persists to `localStorage`. To change the default, edit `src/lib/theme/store.ts` — change the fallback in the `createThemeStore` function from `'light'` to `'dark'` or `'night'`.
+
+The whole system is CSS custom properties on `[data-theme]` in `src/app.css` — safe to retheme without touching any component.
+
+---
 
 ## Deployment
 
-The app builds into a static `dist/` directory suitable for any static hosting (GitHub Pages, Netlify, Vercel, S3, etc.).
+The build outputs a static site in `dist/`. It works on any static host.
+
+### Configure the base path
+
+If your site is not at the root of a domain (e.g. `https://example.com/tour/` instead of `https://example.com/`), set `base` in `vite.config.ts`:
+
+```ts
+export default defineConfig({
+  base: '/tour/',   // ← add this line
+  plugins: [ … ],
+})
+```
+
+Leave it unset (or `'/'`) for root-domain hosting.
 
 ### GitHub Pages
 
-1. Build the project: `npm run build`
-2. Copy `dist/` to a `gh-pages` branch, or use GitHub Actions to auto-deploy on push
-3. Ensure `index.html` is at the root of the Pages site
-
-### Service Worker Lifecycle
-
-The PWA uses `vite-plugin-pwa` with Workbox:
-- **Precache**: All build assets (JS, CSS, HTML, manifest, tour media) cached on first install
-- **Runtime**: Navigation requests fall back to `index.html` (SPA behaviour)
-- **Updates**: New deployments trigger service worker update notification; users see new content on page reload
-
-## Testing
+**Method A — manual**
 
 ```bash
-# Run all tests
-npm test
-
-# Watch mode during development
-npx vitest
-
-# Type checking
-npm run check
+npm run build
+# Push dist/ to your gh-pages branch, or drag-drop to the Pages upload UI
 ```
 
-### Test coverage
+**Method B — GitHub Actions (recommended)**
 
-| Test file | What it tests |
-|-----------|---------------|
-| `src/lib/geo/store.test.ts` | Haversine distance calculations (accuracy, edge cases) |
-| `src/lib/content/content.test.ts` | Content pipeline integrity (YAML manifests, markdown parsing, file resolution) |
+Create `.github/workflows/deploy.yml`:
 
-To add component tests, create `<Component>.test.ts` alongside the component. See `@testing-library/svelte` for DOM testing utilities.
+```yaml
+name: Deploy
+on:
+  push:
+    branches: [main]
 
-## Adding a New Tour
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
+```
 
-1. **Copy the Cissbury Ring template**:
+Then go to **Settings → Pages → Source → GitHub Actions**.
+
+If the repo is at `github.com/<user>/<repo>` and Pages serves it at `https://<user>.github.io/<repo>/`, set `base: '/<repo>/'` in `vite.config.ts`.
+
+### Netlify
+
+```bash
+npm run build
+# Drag-drop dist/ onto app.netlify.com/drop, or connect the repo via the Netlify UI.
+```
+
+With repo-connected auto-deploy, set:
+
+- **Build command:** `npm run build`
+- **Publish directory:** `dist`
+
+No `_redirects` file is needed — the PWA uses hash routing so there are no server-side path redirects required.
+
+### Vercel
+
+```bash
+npm i -g vercel
+vercel --prod
+```
+
+Or connect the GitHub repo in the Vercel dashboard. Build preset: **Vite**.
+
+---
+
+## Installing to a phone
+
+Once deployed, any visitor can install the app to their home screen. It then launches full-screen with no browser chrome, and works completely offline.
+
+### iOS (Safari)
+
+1. Open the tour URL in **Safari** (Chrome on iOS cannot install PWAs).
+2. Tap the **Share** button (the box with an upward arrow) in the bottom toolbar.
+3. Scroll down and tap **Add to Home Screen**.
+4. Edit the name if you like, then tap **Add**.
+
+The app icon appears on the home screen. Open it to trigger the first offline cache (this requires a connection). After that, it works without signal.
+
+> **Tip for tour leaders:** Share the URL with participants before the walk and ask them to install it on Wi-Fi. The app caches all stops, fonts, and media — around 1–3 MB for a typical tour.
+
+### Android (Chrome)
+
+1. Open the tour URL in **Chrome**.
+2. Tap the **⋮ menu** (top-right) and choose **Add to Home screen** (or **Install app**).
+3. Tap **Install**.
+
+On some Android devices Chrome shows an **install banner** at the bottom of the screen automatically after a few visits.
+
+### Testing offline
+
+1. Install the app or open it in Chrome desktop.
+2. Open **DevTools → Application → Service Workers** — confirm the SW is registered and active.
+3. Open **DevTools → Network → Offline** (tick the checkbox).
+4. Reload and navigate — all stops and media should load from cache.
+
+---
+
+## Adding a second tour
+
+1. Copy the example route folder:
    ```bash
    cp -r content/routes/cissbury-ring content/routes/my-new-tour
    ```
+2. Edit `content/routes/my-new-tour/tour.yaml` — set `route_name`, `description`, `stops`.
+3. Rename and edit the stop files in `stops/`.
+4. Add media to `public/tours/my-new-tour/`.
+5. Rebuild: `npm run build && npm run preview`.
 
-2. **Edit `tour.yaml`**:
-   ```yaml
-   route_name: "My New Tour"
-   description: "Description here."
-   icon: "🏛️"
-   stops:
-     - "stop-01"
-     - "stop-02"
-   ```
+The tour appears automatically in the library — no code changes needed.
 
-3. **Create stop files** in `content/routes/my-new-tour/stops/` matching the IDs in the YAML.
+---
 
-4. **Add media** to `public/tours/my-new-tour/`
+## Tests
 
-5. **Build and test**:
-   ```bash
-   npm run build
-   npm run preview
-   ```
+```bash
+npm test           # run once
+npx vitest         # watch mode
+npm run check      # type check only
+```
 
-The app currently defaults to the first route (`routes[0]`). Multi-route selection UI is on the roadmap.
+| File | Covers |
+|---|---|
+| `src/lib/geo/store.test.ts` | Haversine distance · accuracy-aware proximity · `createProximityStore` |
+| `src/lib/content/content.test.ts` | Windows-safe routeId · YAML manifest parsing · numbered-prefix regex |
 
-## Roadmap
-
-- [x] Markdown content pipeline
-- [x] Geolocation with proximity highlighting
-- [x] Media support (image, audio, video, 3D model)
-- [x] Offline PWA with service worker
-- [x] Unit tests for core utilities
-- [ ] Multi-route selector UI
-- [ ] Tour progress persistence (localStorage)
-- [ ] 3D model viewer integration (Three.js / Model-Viewer)
-- [ ] Accessibility audit (WCAG 2.1 AA)
-- [ ] i18n support for multi-language tours
+---
 
 ## License
 

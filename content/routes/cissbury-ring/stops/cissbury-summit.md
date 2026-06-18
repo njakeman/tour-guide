@@ -1,16 +1,16 @@
 ---
 id: cissbury-summit
-title: "Cissbury Ring: Interior Space"
+title: "The Interior Space"
+era: "Iron Age · Neolithic substratum"
+grid_ref: "TQ 140 082"
+elevation: "184m AOD"
+walk_time: "10 min"
 lat: 50.8570
 lng: -0.3780
 proximity_radius: 75
-media:
-  - type: audio
-    src: "/tours/cissbury-ring/summit-narration.mp3"
-    caption: "Expert narration by Dr. Sarah Johnson"
-  - type: image
-    src: "/tours/cissbury-ring/interior-view.jpg"
-    caption: "Panoramic view from the hillfort interior"
+hero:
+  src: "/tours/cissbury-ring/interior-view.jpg"
+  caption: "Panoramic view from the hillfort interior"
 evidence: |
   The interior of the enclosure is relatively open, with limited evidence for dense permanent structures across the whole area.
 interpretation: |

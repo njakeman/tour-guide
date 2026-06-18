@@ -1,13 +1,16 @@
 ---
 id: cissbury-entrance
-title: "Cissbury Ring: Approach and Enclosure"
+title: "The Entrance Causeway"
+era: "Iron Age hillfort · c. 400 BC"
+grid_ref: "TQ 139 080"
+elevation: "156m AOD"
+walk_time: "start here"
 lat: 50.8561
 lng: -0.3790
 proximity_radius: 50
-media:
-  - type: image
-    src: "/tours/cissbury-ring/entrance.jpg"
-    caption: "The defensive bank and ditch on approach"
+hero:
+  src: "/tours/cissbury-ring/entrance.jpg"
+  caption: "West entrance · looking north"
 evidence: |
   Visible earthworks define a substantial enclosure on the hilltop. The bank-and-ditch circuit is traceable around much of the perimeter, and surface finds and past investigations support Iron Age activity here.
 interpretation: |
@@ -24,6 +27,6 @@ You are now approaching Cissbury Ring, one of the largest hillforts in Sussex. A
 - Flint mining pits from earlier Neolithic activity
 - Natural springs that may have influenced the site's location
 
-> "Hillforts are not just defensive structures—they are statements of community, power, and connection to the land."
+> "Hillforts are not just defensive structures — they are statements of community, power, and connection to the land."
 
 Continue along the path to reach the main enclosure.

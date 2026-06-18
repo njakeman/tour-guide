@@ -1,6 +1,9 @@
 route_name: "Cissbury Ring"
-description: "A walking tour of the Iron Age hillfort."
+subtitle: "Iron Age Hillfort · South Downs"
+description: "England's second-largest Iron Age hillfort, raised over Neolithic flint mines. A two-kilometre walk along the ramparts with views to the Channel."
 icon: "🪨"
+total_distance: "2.4 km"
+duration: "~70 min"
 stops:
   - "cissbury-entrance"
   - "cissbury-summit"
