@@ -11,13 +11,16 @@ Built with Svelte 5 · Vite 7 · vite-plugin-pwa / Workbox · three-way Light / 
 Requires **Node.js 20+**.
 
 ```bash
-npm install        # install dependencies
-npm run dev        # dev server at http://localhost:5173
-npm test           # run unit tests (vitest)
-npm run check      # type-check (svelte-check + tsc)
-npm run build      # production build → dist/
-npm run preview    # serve dist/ locally to test PWA
+npm install          # install dependencies
+npm run demo:seed    # generate placeholder media for the demo tour
+npm run dev          # dev server at http://localhost:5173
+npm test             # run unit tests (vitest)
+npm run check        # type-check (svelte-check + tsc)
+npm run build        # production build → dist/
+npm run preview      # serve dist/ locally to test PWA
 ```
+
+Or in one command: `npm run demo` (seed + dev server).
 
 ---
 
@@ -62,138 +65,25 @@ vite.config.ts                # Vite + content plugin + PWA config
 
 ---
 
-## Authoring a tour
+## Authoring a tour / whitelabel branding
 
-### 1 · Create the route folder
+See **[AUTHORING.md](AUTHORING.md)** for the full step-by-step guide covering:
 
-```
-content/routes/<route-id>/
-    tour.yaml
-    stops/
-        01-first-stop.md
-        02-second-stop.md
-```
-
-The folder name (`<route-id>`) becomes the tour's internal ID. Stop files can be named anything; they are picked up in alphabetical order if a numbered prefix (`01-`, `02-`, …) is used.
-
-### 2 · Write `tour.yaml`
-
-```yaml
-route_name: "Cissbury Ring"
-subtitle: "Iron Age Hillfort · South Downs"      # shown in the route header
-description: "England's second-largest Iron Age hillfort, raised over Neolithic flint mines."
-icon: "🪨"
-total_distance: "2.4 km"                         # optional meta chip
-duration: "~70 min"                              # optional meta chip
-stops:
-  - "cissbury-entrance"                          # matches stop id: in frontmatter
-  - "cissbury-summit"
-```
-
-| Field | Required | Notes |
-|---|---|---|
-| `route_name` | ✓ | Display name |
-| `description` | ✓ | Shown on the tour card |
-| `icon` | ✓ | Emoji used as a fallback thumbnail label |
-| `subtitle` | | Short descriptor (period, location) |
-| `total_distance` | | Displayed as a chip |
-| `duration` | | Displayed as a chip |
-| `stops` | ✓ | Ordered list of stop IDs |
-
-### 3 · Write a stop file
-
-Each stop is a Markdown file. The filename must include the stop ID — either as the whole filename (`cissbury-entrance.md`) or with a numbered prefix (`01-cissbury-entrance.md`). The YAML frontmatter `id:` field must match the ID listed in `tour.yaml`.
-
-```markdown
----
-id: cissbury-entrance
-title: "The Entrance Causeway"
-era: "Iron Age hillfort · c. 400 BC"      # eyebrow label shown above the title
-grid_ref: "TQ 139 080"                    # meta chip
-elevation: "156m AOD"                     # meta chip
-walk_time: "start here"                   # shown next to upcoming stops on the route map
-lat: 50.8561
-lng: -0.3790
-proximity_radius: 50                      # metres — triggers the GPS arrival ping
-hero:
-  src: "/tours/cissbury-ring/entrance.jpg"
-  caption: "West entrance · looking north"
-evidence: |
-  Visible earthworks define a substantial enclosure on the hilltop.
-interpretation: |
-  The scale and prominence may have supported gatherings, signalling, or movement through the landscape.
----
-
-The main body of the stop is standard Markdown.
-
-Inline media is embedded using standard image syntax — the build pipeline
-chooses the right HTML element from the file extension:
-
-![A photo caption](entrance.jpg)          ← becomes <img loading="lazy">
-![Audio description](narration.mp3)       ← becomes <audio controls>
-![Video caption](drone.mp4)               ← becomes <video playsinline controls>
-![3D model label](fort.glb)               ← becomes a styled 3D stub
-
-Relative paths resolve from the route's media folder in `public/tours/<route-id>/`.
-Absolute paths (`/tours/cissbury-ring/...`) also work.
-```
-
-#### Frontmatter reference
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `id` | string | ✓ | Must match the entry in `tour.yaml` |
-| `title` | string | ✓ | Displayed as the stop heading |
-| `lat` / `lng` | number | | GPS coordinates; omit for stops with no fixed location |
-| `proximity_radius` | number | | Metres to trigger arrival ping (default: 30) |
-| `era` | string | | Eyebrow label above the title (e.g. "Neolithic · 3500 BC") |
-| `grid_ref` | string | | OS grid reference shown as a chip |
-| `elevation` | string | | Shown as a chip (e.g. "156m AOD") |
-| `walk_time` | string | | Walking time from previous stop; shown on the route map |
-| `hero` | object | | `{ src, caption }` — large image at the top of the stop |
-| `evidence` | string | | Collapsible **Evidence** accordion (observable facts) |
-| `interpretation` | string | | Collapsible **Interpretation** accordion (analysis) |
-
-### 4 · Add media files
-
-Place media in `public/tours/<route-id>/`:
-
-```
-public/
-└── tours/
-    └── cissbury-ring/
-        ├── entrance.jpg     ← hero image or inline image
-        ├── narration.mp3    ← audio commentary
-        ├── drone.mp4        ← video
-        └── fort.glb         ← 3D model (stub rendered, viewer TBD)
-```
-
-Files in `public/` are served at `/` in the browser. The service worker precaches everything under `public/tours/` so it works offline once visited.
-
-#### Supported media types
-
-| Extension | Rendered as |
-|---|---|
-| `.jpg` `.jpeg` `.png` `.webp` `.gif` | `<img loading="lazy">` |
-| `.mp3` `.ogg` `.wav` | `<audio controls>` |
-| `.mp4` `.webm` | `<video playsinline controls>` |
-| `.glb` `.gltf` | Styled placeholder (3D viewer stub) |
+- Setting your app identity (name, manifest, title)
+- Rebranding in one file (`src/styles/brand.css` — Light, Dark, Night token sets)
+- Tour folder layout, `tour.yaml` fields, stop frontmatter reference
+- Inline media syntax (`![caption](file.ext)` → right element by extension)
+- Demo tour: `npm run demo:seed` generates placeholder media for every type (image, audio, video, 3D)
 
 ---
 
 ## Themes
 
-The app ships with three themes toggled by the sun/moon button in the header:
+Three themes — **Light**, **Dark**, **Night** — toggled by the sun/moon button in the header.
+Night mode uses red-amber only to preserve dark-adapted vision in the field.
 
-| Theme | Use case |
-|---|---|
-| **Light** | Daytime — warm parchment tones |
-| **Dark** | Evening — low-glare dark surfaces |
-| **Night** | Fieldwork after dark — red-amber only; preserves night vision |
-
-The active theme persists to `localStorage`. To change the default, edit `src/lib/theme/store.ts` — change the fallback in the `createThemeStore` function from `'light'` to `'dark'` or `'night'`.
-
-The whole system is CSS custom properties on `[data-theme]` in `src/app.css` — safe to retheme without touching any component.
+All colour and font values live in `src/styles/brand.css`. Edit that file to rebrand; no component
+files need to change. The active theme persists to `localStorage`.
 
 ---
 

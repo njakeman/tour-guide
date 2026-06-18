@@ -9,7 +9,7 @@ lat: 50.8570
 lng: -0.3780
 proximity_radius: 75
 hero:
-  src: "/tours/cissbury-ring/interior-view.jpg"
+  src: "/tours/cissbury-ring/interior-view.png"
   caption: "Panoramic view from the hillfort interior"
 evidence: |
   The interior of the enclosure is relatively open, with limited evidence for dense permanent structures across the whole area.

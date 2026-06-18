@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 dist/
+
+# Generated demo media (run `npm run demo:seed` to recreate)
+# Real tour media in public/tours/ should be committed — only the demo is gitignored.
+/public/tours/cissbury-ring/
 .env
 .env.local
 .env.*.local

@@ -56,6 +56,10 @@
   // Hero image: explicit hero field takes priority
   const heroSrc = $derived(stop.hero?.src ?? stop.media?.find((m) => m.type === 'image')?.src)
   const heroCaption = $derived(stop.hero?.caption ?? stop.media?.find((m) => m.type === 'image')?.caption)
+
+  // Hide the <img> on load error and reveal the contour-SVG fallback
+  let heroFailed = $state(false)
+  function onHeroError() { heroFailed = true }
 </script>
 
 <div class="screen">
@@ -89,8 +93,8 @@
 
     <!-- Hero plate -->
     <div class="plate">
-      {#if heroSrc}
-        <img src={heroSrc} alt={heroCaption ?? stop.title} class="plate-img" loading="eager" />
+      {#if heroSrc && !heroFailed}
+        <img src={heroSrc} alt={heroCaption ?? stop.title} class="plate-img" loading="eager" onerror={onHeroError} />
       {:else}
         <!-- Procedural contour art fallback -->
         <svg class="plate-svg" viewBox="0 0 366 212" preserveAspectRatio="none" aria-hidden="true">

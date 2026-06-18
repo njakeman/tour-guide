@@ -1,4 +1,5 @@
 import { mount } from 'svelte'
+import './styles/brand.css'
 import './app.css'
 import '@fontsource/spectral/400.css'
 import '@fontsource/spectral/400-italic.css'

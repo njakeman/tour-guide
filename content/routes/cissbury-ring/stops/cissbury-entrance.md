@@ -9,7 +9,7 @@ lat: 50.8561
 lng: -0.3790
 proximity_radius: 50
 hero:
-  src: "/tours/cissbury-ring/entrance.jpg"
+  src: "/tours/cissbury-ring/entrance.png"
   caption: "West entrance · looking north"
 evidence: |
   Visible earthworks define a substantial enclosure on the hilltop. The bank-and-ditch circuit is traceable around much of the perimeter, and surface finds and past investigations support Iron Age activity here.
@@ -30,3 +30,27 @@ You are now approaching Cissbury Ring, one of the largest hillforts in Sussex. A
 > "Hillforts are not just defensive structures — they are statements of community, power, and connection to the land."
 
 Continue along the path to reach the main enclosure.
+
+## Rampart Detail
+
+The western rampart is particularly well preserved at this point.
+
+![Rampart close-up](/tours/cissbury-ring/rampart.png)
+
+## Audio Commentary
+
+Listen to a short introduction to Cissbury Ring before you begin.
+
+![Introduction to Cissbury Ring](/tours/cissbury-ring/narration.mp3)
+
+## Aerial Flythrough
+
+A brief aerial overview of the hillfort and its setting in the South Downs.
+
+![Aerial flythrough of Cissbury Ring](/tours/cissbury-ring/flythrough.mp4)
+
+## 3D Reconstruction
+
+An early-phase reconstruction model of the timber gate structure at the west entrance.
+
+![West gate reconstruction · c. 400 BC](/tours/cissbury-ring/fort.glb)
