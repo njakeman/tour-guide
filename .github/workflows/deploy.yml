@@ -40,10 +40,8 @@ jobs:
       - name: Generate demo media
         run: npm run demo:seed
 
-      - name: Build (sub-path base for GitHub Pages)
+      - name: Build
         run: npm run build
-        env:
-          BASE_PATH: /tour-guide/
 
       - uses: actions/upload-pages-artifact@v3
         with:

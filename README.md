@@ -93,29 +93,29 @@ The build outputs a static site in `dist/`. It works on any static host.
 
 ### Base-path awareness
 
-The app is base-path-aware out of the box. Set the `BASE_PATH` environment variable at build time
-when serving from a sub-path (e.g. GitHub Pages). Leave it unset for root-domain hosts.
+The default build serves from `/` (root). If you ever need to host under a sub-path, set
+`BASE_PATH` at build time — the content pipeline will prefix all media paths automatically:
 
 ```bash
-# Root-domain host (Netlify, Vercel, custom domain)
+# Root-domain or custom subdomain (default)
 npm run build
 
-# Sub-path host (GitHub Pages at /<repo>/)
-BASE_PATH=/tour-guide/ npm run build
+# Sub-path host (e.g. /myapp/ on a shared server)
+BASE_PATH=/myapp/ npm run build
 ```
-
-All tour media paths (`/tours/…`) are prefixed automatically by the content pipeline — you never
-need to change the paths in your markdown or frontmatter.
 
 ### GitHub Pages (auto-deploy)
 
 A workflow is included at `.github/workflows/deploy.yml`. It triggers on every push to `main`,
-generates demo media, builds with the correct base path, and deploys to Pages.
+generates demo media, builds, and deploys to Pages.
 
 **One-time setup:** go to **Settings → Pages → Source → GitHub Actions**.
 
-After that, every `git push origin main` deploys automatically. Your live URL will be:
-`https://<your-username>.github.io/tour-guide/`
+**Custom domain:** add your domain in **Settings → Pages → Custom domain**, and ensure a `CNAME`
+file containing your domain name exists in the `public/` folder (already present as
+`public/CNAME`). This prevents the custom domain from being wiped on each deploy.
+
+After that, every `git push origin main` deploys automatically.
 
 ### Netlify
 
