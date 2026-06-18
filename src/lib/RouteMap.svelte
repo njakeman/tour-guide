@@ -100,7 +100,6 @@
 <div class="screen">
   <!-- Status bar -->
   <div class="status-bar">
-    <span>9:41</span>
     <span class="status-right">⌖ GPS</span>
   </div>
 
