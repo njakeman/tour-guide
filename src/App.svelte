@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { SvelteSet } from 'svelte/reactivity'
   import { writable } from 'svelte/store'
   import { routes } from 'virtual:tour-content'
   import type { TourStop } from './lib/types'
@@ -44,10 +45,10 @@
   })
 
   // Track visited stops within the session
-  let visited = $state(new Set<string>())
+  // SvelteSet.add() mutates in place — no read-then-reassign, no infinite loop
+  const visited = new SvelteSet<string>()
   $effect(() => {
-    const id = currentStop?.id
-    if (id) visited = new Set([...visited, id])
+    if (view === 'stop' && currentStop?.id) visited.add(currentStop.id)
   })
 
   // ── Hash management ───────────────────────────────────────────────────────
