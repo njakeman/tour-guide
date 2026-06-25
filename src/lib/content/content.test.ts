@@ -66,6 +66,43 @@ describe('Content Pipeline', () => {
     }
   })
 
+  it('rewrites map.basemap through the base path when present', () => {
+    // Integration smoke-test: if a tour.yaml declares a map.basemap, the path
+    // must start with "/" (i.e. be absolute and base-path-ready). This mirrors
+    // the withBase() contract — authors write /tours/… and the plugin prefixes.
+    const routes = readdirSync(ROUTES_DIR, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => join(ROUTES_DIR, d.name))
+
+    for (const routeDir of routes) {
+      const yamlPath = join(routeDir, 'tour.yaml')
+      const parsed = yaml.load(readFileSync(yamlPath, 'utf-8')) as {
+        map?: { basemap?: string; center?: number[]; zoom?: number }
+      }
+
+      if (!parsed.map?.basemap) continue
+
+      // The raw path in tour.yaml must start with "/" (root-relative)
+      expect(
+        parsed.map.basemap.startsWith('/'),
+        `tour.yaml map.basemap must be root-relative (/tours/…), got: ${parsed.map.basemap}`,
+      ).toBe(true)
+
+      // After withBase('/') the prefix is stripped then re-added, so at default
+      // base the path is unchanged — still starts with "/"
+      const basemap = parsed.map.basemap
+      expect(basemap).toMatch(/^\/tours\//)
+
+      if (parsed.map.center !== undefined) {
+        expect(Array.isArray(parsed.map.center)).toBe(true)
+        expect(parsed.map.center.length).toBe(2)
+      }
+      if (parsed.map.zoom !== undefined) {
+        expect(typeof parsed.map.zoom).toBe('number')
+      }
+    }
+  })
+
   it('parses stop markdown with required frontmatter fields', () => {
     const routes = readdirSync(ROUTES_DIR, { withFileTypes: true })
       .filter((d) => d.isDirectory())

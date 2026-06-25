@@ -1,10 +1,20 @@
 <!--
   Route Map — overview screen for a selected tour.
-  Shows a static inline-SVG schematic with contour rings, a dashed route path,
-  and numbered pins positioned from stop coordinates (or evenly spaced as fallback).
+
+  Map panel: attempts to mount a MapLibre GL map with a local PMTiles raster
+  basemap when `route.map.basemap` is set. Falls back to a static inline-SVG
+  schematic (contour rings, dashed route path, numbered pins) when:
+    • `route.map` is absent (no basemap configured for this tour), or
+    • the browser has no WebGL support, or
+    • MapLibre throws on initialisation.
+
   Below the map: stop list with done/current/upcoming states and a Resume button.
 -->
 <script lang="ts">
+  import { onMount } from 'svelte'
+  import maplibregl from 'maplibre-gl'
+  import 'maplibre-gl/dist/maplibre-gl.css'
+  import { Protocol } from 'pmtiles'
   import type { TourRoute } from './types'
   import ThemeToggle from './ThemeToggle.svelte'
 
@@ -16,6 +26,84 @@
     onGoToStop: (stopId: string) => void
   }
   const { route, currentStopId, visitedStopIds, onBack, onGoToStop }: Props = $props()
+
+  // ── MapLibre state ────────────────────────────────────────────────────────
+  /** Whether to fall back to the SVG (no basemap, no WebGL, or init error) */
+  let mapFailed = $state(false)
+  /** The DOM element MapLibre mounts into */
+  let mapEl: HTMLDivElement | undefined = $state(undefined)
+
+  onMount(() => {
+    // No basemap configured for this tour — show SVG immediately
+    if (!route.map?.basemap) {
+      mapFailed = true
+      return
+    }
+
+    // WebGL feature detection
+    try {
+      const canvas = document.createElement('canvas')
+      const hasWebGL =
+        !!canvas.getContext('webgl2') || !!canvas.getContext('webgl')
+      if (!hasWebGL) {
+        mapFailed = true
+        return
+      }
+    } catch {
+      mapFailed = true
+      return
+    }
+
+    // Register pmtiles protocol with MapLibre
+    const protocol = new Protocol()
+    maplibregl.addProtocol('pmtiles', protocol.tile)
+
+    let map: maplibregl.Map | null = null
+
+    try {
+      const center: [number, number] = route.map.center ?? [-0.375, 50.858]
+      const zoom = route.map.zoom ?? 14
+
+      map = new maplibregl.Map({
+        container: mapEl!,
+        style: {
+          version: 8,
+          sources: {
+            basemap: {
+              type: 'raster',
+              url: `pmtiles://${route.map.basemap}`,
+              tileSize: 256,
+              attribution: '© Environment Agency, © OpenStreetMap contributors',
+            },
+          },
+          layers: [
+            {
+              id: 'basemap',
+              type: 'raster',
+              source: 'basemap',
+            },
+          ],
+        },
+        center,
+        zoom,
+        minZoom: 11,
+        maxZoom: 17,
+        attributionControl: { compact: true },
+      })
+    } catch {
+      mapFailed = true
+      map?.remove()
+      map = null
+      maplibregl.removeProtocol('pmtiles')
+    }
+
+    // Teardown — prevents leaks when hash-routing between views
+    return () => {
+      map?.remove()
+      map = null
+      maplibregl.removeProtocol('pmtiles')
+    }
+  })
 
   // ── SVG map geometry ─────────────────────────────────────────────────────
   const VW = 330
@@ -115,85 +203,91 @@
 
   <!-- Map panel -->
   <div class="map-wrap">
-    <svg
-      class="map-svg"
-      viewBox="0 0 {VW} {VH}"
-      preserveAspectRatio="xMidYMid slice"
-      aria-label="Route map for {route.name}"
-      role="img"
-    >
-      <!-- Background -->
-      <rect width={VW} height={VH} fill="var(--map-fill)"/>
+    {#if route.map?.basemap && !mapFailed}
+      <!-- MapLibre GL map — real raster basemap from local PMTiles file -->
+      <div class="map-canvas" bind:this={mapEl} aria-label="Route map for {route.name}"></div>
+    {:else}
+      <!-- SVG fallback: no basemap configured, WebGL unavailable, or init error -->
+      <svg
+        class="map-svg"
+        viewBox="0 0 {VW} {VH}"
+        preserveAspectRatio="xMidYMid slice"
+        aria-label="Route map for {route.name}"
+        role="img"
+      >
+        <!-- Background -->
+        <rect width={VW} height={VH} fill="var(--map-fill)"/>
 
-      <!-- Decorative contour rings -->
-      <g fill="none" stroke="var(--map-stroke)" stroke-width="1.2">
-        <ellipse cx={cx} cy={cy} rx="135" ry="98"/>
-        <ellipse cx={cx} cy={cy} rx="108" ry="76"/>
-        <ellipse cx={cx} cy={cy} rx="82"  ry="56"/>
-        <ellipse cx={cx} cy={cy} rx="56"  ry="38"/>
-        <ellipse cx={cx} cy={cy} rx="30"  ry="20"/>
-      </g>
-
-      <!-- Dashed route path -->
-      {#if routePath}
-        <path
-          d={routePath}
-          fill="none"
-          stroke="var(--map-route)"
-          stroke-width="3"
-          stroke-dasharray="1 8"
-          stroke-linecap="round"
-        />
-      {/if}
-
-      <!-- Stop pins -->
-      {#each pins as pin (pin.stopId)}
-        {@const status = stopStatus(pin.stopId)}
-        {@const r = status === 'current' ? 15 : 12}
-        <g
-          role="button"
-          tabindex="0"
-          aria-label="Stop {pin.label}: {route.stops[pin.index]?.title}"
-          onclick={() => onGoToStop(pin.stopId)}
-          onkeydown={(e) => e.key === 'Enter' && onGoToStop(pin.stopId)}
-          style="cursor:pointer"
-        >
-          {#if status === 'current'}
-            <circle cx={pin.x} cy={pin.y} r="22" fill="var(--pin-current)" opacity="0.2"/>
-          {/if}
-          <circle
-            cx={pin.x}
-            cy={pin.y}
-            r={r}
-            fill={status === 'done' ? 'var(--pin-done)' : status === 'current' ? 'var(--pin-current)' : 'var(--pin-todo-bg)'}
-            stroke={status === 'current' ? 'var(--bg)' : 'none'}
-            stroke-width={status === 'current' ? '2' : '0'}
-          />
-          <text
-            x={pin.x}
-            y={pin.y}
-            text-anchor="middle"
-            dominant-baseline="central"
-            font-family="var(--font-mono)"
-            font-size={status === 'current' ? '11' : '9'}
-            font-weight="700"
-            fill={status === 'done' ? 'var(--bg)' : status === 'current' ? 'var(--bg)' : 'var(--pin-todo-fg)'}
-          >
-            {status === 'done' ? '✓' : pin.label}
-          </text>
+        <!-- Decorative contour rings -->
+        <g fill="none" stroke="var(--map-stroke)" stroke-width="1.2">
+          <ellipse cx={cx} cy={cy} rx="135" ry="98"/>
+          <ellipse cx={cx} cy={cy} rx="108" ry="76"/>
+          <ellipse cx={cx} cy={cy} rx="82"  ry="56"/>
+          <ellipse cx={cx} cy={cy} rx="56"  ry="38"/>
+          <ellipse cx={cx} cy={cy} rx="30"  ry="20"/>
         </g>
-      {/each}
 
-      <!-- Map label -->
-      <text
-        x="12" y="22"
-        font-family="var(--font-mono)"
-        font-size="8"
-        letter-spacing="0.1"
-        style="text-transform:uppercase"
-        fill="var(--muted)"
-      >Survey overview</text>
-    </svg>
+        <!-- Dashed route path -->
+        {#if routePath}
+          <path
+            d={routePath}
+            fill="none"
+            stroke="var(--map-route)"
+            stroke-width="3"
+            stroke-dasharray="1 8"
+            stroke-linecap="round"
+          />
+        {/if}
+
+        <!-- Stop pins -->
+        {#each pins as pin (pin.stopId)}
+          {@const status = stopStatus(pin.stopId)}
+          {@const r = status === 'current' ? 15 : 12}
+          <g
+            role="button"
+            tabindex="0"
+            aria-label="Stop {pin.label}: {route.stops[pin.index]?.title}"
+            onclick={() => onGoToStop(pin.stopId)}
+            onkeydown={(e) => e.key === 'Enter' && onGoToStop(pin.stopId)}
+            style="cursor:pointer"
+          >
+            {#if status === 'current'}
+              <circle cx={pin.x} cy={pin.y} r="22" fill="var(--pin-current)" opacity="0.2"/>
+            {/if}
+            <circle
+              cx={pin.x}
+              cy={pin.y}
+              r={r}
+              fill={status === 'done' ? 'var(--pin-done)' : status === 'current' ? 'var(--pin-current)' : 'var(--pin-todo-bg)'}
+              stroke={status === 'current' ? 'var(--bg)' : 'none'}
+              stroke-width={status === 'current' ? '2' : '0'}
+            />
+            <text
+              x={pin.x}
+              y={pin.y}
+              text-anchor="middle"
+              dominant-baseline="central"
+              font-family="var(--font-mono)"
+              font-size={status === 'current' ? '11' : '9'}
+              font-weight="700"
+              fill={status === 'done' ? 'var(--bg)' : status === 'current' ? 'var(--bg)' : 'var(--pin-todo-fg)'}
+            >
+              {status === 'done' ? '✓' : pin.label}
+            </text>
+          </g>
+        {/each}
+
+        <!-- Map label -->
+        <text
+          x="12" y="22"
+          font-family="var(--font-mono)"
+          font-size="8"
+          letter-spacing="0.1"
+          style="text-transform:uppercase"
+          fill="var(--muted)"
+        >Survey overview</text>
+      </svg>
+    {/if}
   </div>
 
   <!-- Summary chips -->
@@ -330,6 +424,14 @@
     display: block;
     width: 100%;
     height: auto;
+  }
+
+  /* MapLibre canvas container — matches the SVG's aspect ratio */
+  .map-canvas {
+    display: block;
+    width: 100%;
+    /* 330 × 236 matches the SVG viewBox */
+    aspect-ratio: 330 / 236;
   }
 
   /* Summary chips */

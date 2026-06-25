@@ -45,6 +45,20 @@ export type TourStop = {
 }
 
 /**
+ * Optional basemap configuration for a tour route.
+ * The basemap URL is base-path-rewritten by the content plugin at build time —
+ * authors always write /tours/… paths.
+ */
+export type TourMap = {
+  /** Base-path-rewritten URL to a local PMTiles raster basemap */
+  basemap: string
+  /** [lng, lat] initial centre for the map view */
+  center?: [number, number]
+  /** Initial zoom level */
+  zoom?: number
+}
+
+/**
  * A named collection of stops following a route.
  */
 export type TourRoute = {
@@ -56,5 +70,7 @@ export type TourRoute = {
   icon: string
   total_distance?: string
   duration?: string
+  /** Optional basemap configuration — drives the MapLibre map on the route overview */
+  map?: TourMap
   stops: TourStop[]
 }

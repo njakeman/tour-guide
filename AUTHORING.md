@@ -228,6 +228,112 @@ See `README.md` for full deployment instructions (GitHub Pages, Netlify, Vercel)
 
 ---
 
+## Starting a new tour from scratch
+
+This section gives the minimal skeleton for a brand-new tour with **no** demo
+content or Cissbury baggage. Copy-paste, then fill in your own values.
+
+### 1. Content folder
+
+```
+content/routes/
+└── my-tour/                  ← folder name becomes the tour ID (no spaces or slashes)
+    ├── tour.yaml             ← route manifest — required
+    └── stops/
+        └── my-first-stop.md  ← one file per stop listed in tour.yaml
+```
+
+### 2. Minimal `tour.yaml`
+
+Every field marked **required** must be present. Optional fields can be omitted.
+
+```yaml
+route_name: "My Tour"                 # required — shown as the tour title
+description: "A walk around …"       # required — shown in the tour card
+icon: "🗺️"                           # required — emoji shown on the library card
+subtitle: "Period · Location"         # optional — small eyebrow under the title
+total_distance: "2.1 km"             # optional — shown as a chip
+duration: "~60 min"                  # optional — shown as a chip
+
+# Optional basemap — drives the MapLibre raster map on the route overview.
+# Remove this block entirely if you have no .pmtiles file yet.
+map:
+  basemap: "/tours/my-tour/my-tiles.pmtiles"  # root-relative path to the file
+  center: [-0.375, 50.858]                    # [lng, lat] — initial map centre
+  zoom: 14                                    # initial zoom (must be within tileset range)
+
+stops:
+  - "my-first-stop"           # required — matches the id: field in each .md file
+```
+
+Required fields: `route_name`, `description`, `icon`, `stops` (at least one entry).
+
+### 3. Minimal stop file
+
+```markdown
+---
+id: my-first-stop          # required — must match entry in tour.yaml stops list
+title: "Stop Title"        # required — shown as the stop heading
+lat: 50.8561               # optional — GPS lat for proximity detection
+lng: -0.3790               # optional — GPS lng; include both or neither
+proximity_radius: 30       # optional — metres before arrival triggers (default: 30)
+era: "Iron Age · c. 400 BC"        # optional — eyebrow label
+grid_ref: "TQ 139 080"             # optional — shown as a chip
+elevation: "156m AOD"              # optional — shown as a chip
+walk_time: "start here"            # optional — shown on the route overview
+hero:                              # optional — hero image at top of stop
+  src: "/tours/my-tour/cover.jpg"
+  caption: "Caption text"
+evidence: |                        # optional — collapsible Evidence accordion
+  What is physically present here.
+interpretation: |                  # optional — collapsible Interpretation accordion
+  What it might mean.
+---
+
+Main body in standard Markdown. Use image syntax for inline media — the
+file extension determines the rendered element (see Step 5 above).
+```
+
+Required frontmatter: `id`, `title`. Everything else is optional.
+
+### 4. Media folder
+
+```
+public/tours/
+└── my-tour/                ← folder name = tour ID
+    ├── cover.jpg           ← real photos, audio, video, 3D models
+    └── my-tiles.pmtiles    ← basemap raster (if you have one)
+```
+
+**Committed real media vs gitignored demo placeholders:**
+
+| | Committed to git? | How to generate |
+|---|---|---|
+| Your real photos, audio, `.pmtiles` | ✓ Yes — commit normally | You provide them |
+| `public/tours/cissbury-ring/*` placeholders | ✗ No — gitignored | `npm run demo:seed` |
+
+Files in `public/tours/<your-tour>/` are served at `/tours/<your-tour>/…` and
+runtime-cached by the service worker (CacheFirst, 60-day TTL). If you are adding
+a `.pmtiles` basemap, it is also **precached** at SW install time so the map
+works offline from the first visit (see `vite.config.ts` — `globPatterns`
+includes `pmtiles`).
+
+### 5. Adding a basemap to a new tour
+
+1. Get a raster `.pmtiles` file covering your tour area (EPSG:3857, zoom 11–17
+   is a good range for walking tours).
+2. Place it in `public/tours/<your-tour>/my-tiles.pmtiles`.
+3. Add the `map:` block to `tour.yaml` (see §2 above). Set `center` to the
+   approximate midpoint of the tour and `zoom` to taste (14–15 works well for a
+   2 km walk). Keep `zoom` inside the tileset's range; going outside it shows
+   blank tiles.
+4. Commit the `.pmtiles` file alongside your content.
+
+> **Phase 2 note:** Stop markers, a route line, and a live-location dot are
+> planned for Phase 2. The basemap is Phase 1 only.
+
+---
+
 ## Adding a second tour
 
 1. Create `content/routes/<new-tour>/tour.yaml` and `stops/` directory.

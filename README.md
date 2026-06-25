@@ -182,18 +182,22 @@ On some Android devices Chrome shows an **install banner** at the bottom of the 
 
 ---
 
-## Adding a second tour
+## Adding a tour / starting from scratch
 
-1. Copy the example route folder:
-   ```bash
-   cp -r content/routes/cissbury-ring content/routes/my-new-tour
-   ```
-2. Edit `content/routes/my-new-tour/tour.yaml` — set `route_name`, `description`, `stops`.
-3. Rename and edit the stop files in `stops/`.
-4. Add media to `public/tours/my-new-tour/`.
-5. Rebuild: `npm run build && npm run preview`.
+See **[AUTHORING.md → Starting a new tour from scratch](AUTHORING.md#starting-a-new-tour-from-scratch)**
+for the full skeleton: a minimal `tour.yaml`, a stub stop file with every
+required/optional frontmatter field annotated, and notes on the media folder.
+
+Quick summary:
+1. Create `content/routes/<tour-id>/tour.yaml` and `stops/<stop-id>.md`.
+2. Add media (images, audio, `.pmtiles` basemap) to `public/tours/<tour-id>/` — **commit these**.
+3. Rebuild: `npm run build && npm run preview`.
 
 The tour appears automatically in the library — no code changes needed.
+
+> **Don't copy the Cissbury folder as a starting point.** Its content is a demo
+> and carries `demo:seed`-generated placeholders. Use the AUTHORING.md skeleton
+> instead.
 
 ---
 

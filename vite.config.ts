@@ -47,11 +47,30 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Precache the app shell (JS/CSS/HTML) and web fonts
+        // Precache the app shell (JS/CSS/HTML) and web fonts.
+        // PMTiles basemaps are NOT precached here — they need Range-request-aware
+        // caching (see runtimeCaching below). Precaching stores full 200 responses
+        // which pmtiles rejects when it issues Range requests (it throws on 200+full).
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
-        // Runtime-cache tour media with a long-lived CacheFirst strategy
         runtimeCaching: [
           {
+            // PMTiles basemaps: CacheFirst with Range-request support.
+            // pmtiles issues HTTP Range requests for each tile + header; Workbox's
+            // rangeRequests plugin returns proper 206 Partial Content responses from
+            // the cached full file, so offline rendering works after one online load.
+            urlPattern: /\.pmtiles(\?.*)?$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'pmtiles-basemaps',
+              rangeRequests: true,
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+              },
+            },
+          },
+          {
+            // Runtime-cache other tour media (images, audio, video) with CacheFirst
             urlPattern: /\/tours\/.+/,
             handler: 'CacheFirst',
             options: {

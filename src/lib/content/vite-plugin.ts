@@ -4,10 +4,10 @@ import { join, resolve, basename } from 'path'
 import matter from 'gray-matter'
 import yaml from 'js-yaml'
 import { Marked } from 'marked'
-import type { TourStop, TourRoute, MediaItem, HeroImage } from '../types'
+import type { TourStop, TourRoute, TourMap, MediaItem, HeroImage } from '../types'
 
 // Re-export types so virtual-content.d.ts can reference them from this file too
-export type { TourStop, TourRoute, MediaItem, HeroImage }
+export type { TourStop, TourRoute, TourMap, MediaItem, HeroImage }
 
 // ---------------------------------------------------------------------------
 // Base-path handling
@@ -86,6 +86,11 @@ function loadTourRoute(routeDir: string): TourRoute {
     icon?: string
     total_distance?: string
     duration?: string
+    map?: {
+      basemap: string
+      center?: [number, number]
+      zoom?: number
+    }
     stops: string[]
   }
 
@@ -170,6 +175,16 @@ function loadTourRoute(routeDir: string): TourRoute {
   // Use path.basename to safely extract the directory name on any OS
   const routeId = basename(routeDir)
 
+  // Rewrite the basemap path through withBase() so it's correct on sub-path hosts
+  // (same mechanism as hero.src). Authors always write /tours/… in tour.yaml.
+  const tourMap: TourMap | undefined = tourYaml.map?.basemap
+    ? {
+        basemap: withBase(tourYaml.map.basemap),
+        center: tourYaml.map.center,
+        zoom: tourYaml.map.zoom,
+      }
+    : undefined
+
   return {
     id: routeId,
     name: tourYaml.route_name,
@@ -178,6 +193,7 @@ function loadTourRoute(routeDir: string): TourRoute {
     icon: tourYaml.icon ?? '🗺️',
     total_distance: tourYaml.total_distance,
     duration: tourYaml.duration,
+    map: tourMap,
     stops,
   }
 }
