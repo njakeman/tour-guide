@@ -100,6 +100,10 @@
     return mins <= 1 ? '1 min' : `${mins} min`
   }
 
+  // Whether the phone stop-hero becomes a locator map (needs coordinates).
+  // A coordinate-less stop keeps its photo / contour-art plate at every width.
+  const hasHeroMap = $derived(stop.lat != null && stop.lng != null)
+
   // Hero image: explicit hero field takes priority
   const heroSrc = $derived(stop.hero?.src ?? stop.media?.find((m) => m.type === 'image')?.src)
   const heroCaption = $derived(stop.hero?.caption ?? stop.media?.find((m) => m.type === 'image')?.caption)
@@ -128,7 +132,7 @@
   </div>
 
   <!-- Progress segments -->
-  <div class="progress-bar" role="progressbar" aria-valuenow={stopIndex + 1} aria-valuemax={totalStops}>
+  <div class="progress-bar" role="progressbar" aria-label="Tour progress" aria-valuemin={1} aria-valuenow={stopIndex + 1} aria-valuemax={totalStops}>
     {#each Array(totalStops) as _, i}
       <div class="progress-seg" class:progress-seg--done={i <= stopIndex}></div>
     {/each}
@@ -163,7 +167,7 @@
              map is already visible. Both blocks exist in the DOM at every
              width — CSS + MapPanel's lazy ResizeObserver init decide what
              actually renders (see the @media blocks at the end of <style>). -->
-        <div class="plate stop-hero">
+        <div class="plate stop-hero" data-has-map={hasHeroMap ? 'true' : undefined}>
           {#if stop.lat != null && stop.lng != null}
             <div class="hero-map">
               <MapPanel
@@ -879,12 +883,14 @@
     .screen { max-width: 430px; }
     .ts-rail { display: none; }
 
-    /* Hero plate becomes the stop-locator map; the photo is not shown here. */
-    .hero-map { display: block; }
-    .plate-img,
-    .plate-svg,
-    .plate-overlay,
-    .plate-footer { display: none; }
+    /* Hero plate becomes the stop-locator map; the photo is not shown here.
+       Scoped to [data-has-map] so a coordinate-less stop (no .hero-map in the
+       DOM) keeps its photo / contour-art plate instead of rendering blank. */
+    .stop-hero[data-has-map] .hero-map { display: block; }
+    .stop-hero[data-has-map] .plate-img,
+    .stop-hero[data-has-map] .plate-svg,
+    .stop-hero[data-has-map] .plate-overlay,
+    .stop-hero[data-has-map] .plate-footer { display: none; }
 
     .ts-body[data-phone-view='map'] .ts-rail,
     .ts-body[data-phone-view='stops'] .ts-rail {

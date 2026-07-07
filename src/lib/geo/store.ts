@@ -75,17 +75,24 @@ function createGeolocationStore() {
       }
 
       function onSuccess(pos: GeolocationPosition) {
-        update((s) => ({
-          ...s,
-          position: {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
-            timestamp: pos.timestamp,
-          },
-          loading: false,
-          error: null,
-        }))
+        update((s) => {
+          // The seed getCurrentPosition (maximumAge 30s) can resolve with a
+          // cached fix *after* a fresher watch update has already landed —
+          // don't let it move the position/timestamp backwards (which would
+          // regress the distance or flip a live reading to "stale").
+          if (s.position && pos.timestamp < s.position.timestamp) return s
+          return {
+            ...s,
+            position: {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              accuracy: pos.coords.accuracy,
+              timestamp: pos.timestamp,
+            },
+            loading: false,
+            error: null,
+          }
+        })
       }
 
       function onError(err: GeolocationPositionError) {

@@ -46,6 +46,17 @@ describe('TourLibrary', () => {
     expect(onSelect).toHaveBeenCalledWith('a')
   })
 
+  it('keeps input order under the nearby filter when there is no GPS fix', () => {
+    // With no fix every distance is Infinity; the comparator must return 0
+    // (stable, input order) rather than Infinity - Infinity = NaN.
+    const routes = [makeRoute('a', 'Route A'), makeRoute('b', 'Route B'), makeRoute('c', 'Route C')]
+    const { container } = render(TourLibrary, { props: { routes, onSelect: vi.fn() } })
+    const order = Array.from(container.querySelectorAll('.tour-card')).map((el) =>
+      el.getAttribute('data-tour'),
+    )
+    expect(order).toEqual(['a', 'b', 'c'])
+  })
+
   it('shows an explanatory empty state on the Saved filter', async () => {
     render(TourLibrary, {
       props: { routes: [makeRoute('a', 'Route A')], onSelect: vi.fn() },

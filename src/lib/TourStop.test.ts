@@ -174,3 +174,28 @@ describe('TourStop — responsive one-DOM layout', () => {
     expect(body.getAttribute('data-phone-view')).toBe('stop')
   })
 })
+
+describe('TourStop — coordinate-less hero plate', () => {
+  it('keeps the contour-art plate (no data-has-map, no hero map) when the stop has no coordinates', () => {
+    const props = baseProps()
+    const stop = makeStop('no-coords', 'No Coords', { lat: null, lng: null })
+    props.route.stops[0] = stop
+    props.stop = stop
+    const { container } = render(TourStopView, { props })
+
+    // Without coordinates the phone hero must NOT flip to a locator map,
+    // otherwise the @media rules would hide the plate and leave it blank.
+    const hero = container.querySelector('.stop-hero')!
+    expect(hero.hasAttribute('data-has-map')).toBe(false)
+    expect(container.querySelector('#tour-map-hero')).toBeNull()
+    // The fallback plate art is still rendered.
+    expect(container.querySelector('.plate-svg')).toBeTruthy()
+  })
+
+  it('sets data-has-map and mounts the hero locator map when the stop has coordinates', () => {
+    const { container } = render(TourStopView, { props: baseProps() })
+    const hero = container.querySelector('.stop-hero')!
+    expect(hero.getAttribute('data-has-map')).toBe('true')
+    expect(container.querySelector('#tour-map-hero')).toBeTruthy()
+  })
+})

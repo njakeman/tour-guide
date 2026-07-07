@@ -14,7 +14,7 @@
   data-phone-view; ≥ 720px both panes are always visible (tab state is ignored).
 -->
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
   import type { TourRoute } from './types'
   import { geolocation, haversineDistance } from './geo/store'
   import { online, isBasemapCached } from './offline/store'
@@ -64,20 +64,49 @@
     }
   })
 
+  // Position used for sorting and the distance badges. It follows the live GPS
+  // fix only once the user has moved past a threshold, so the visible card
+  // order doesn't churn on every sub-second watch tick (cards reordering under
+  // a tapping finger). untrack() keeps this effect from depending on the very
+  // state it writes — the read+write-same-state trap (see CLAUDE.md).
+  const SORT_MOVE_THRESHOLD_M = 250
+  let sortPos = $state<{ lat: number; lng: number } | null>(null)
+  $effect(() => {
+    const pos = $geolocation.position
+    if (!pos) return
+    untrack(() => {
+      if (
+        sortPos === null ||
+        haversineDistance(sortPos.lat, sortPos.lng, pos.lat, pos.lng) > SORT_MOVE_THRESHOLD_M
+      ) {
+        sortPos = { lat: pos.lat, lng: pos.lng }
+      }
+    })
+  })
+
   /**
-   * Distance (metres) from user to the first stop of a route.
-   * Returns Infinity when GPS is unavailable.
+   * Distance (metres) from `from` to the first stop of a route.
+   * Returns Infinity when there is no fix or the stop has no coordinates
+   * (explicit null check: longitude 0 — the prime meridian through Sussex —
+   * is a valid coordinate, so a falsy check would wrongly drop it).
    */
-  function routeDistance(route: TourRoute): number {
-    const geo = $geolocation
-    if (!geo.position) return Infinity
+  function routeDistance(route: TourRoute, from: { lat: number; lng: number } | null): number {
+    if (!from) return Infinity
     const first = route.stops[0]
-    if (!first?.lat || !first?.lng) return Infinity
-    return haversineDistance(geo.position.lat, geo.position.lng, first.lat, first.lng)
+    if (first?.lat == null || first?.lng == null) return Infinity
+    return haversineDistance(from.lat, from.lng, first.lat, first.lng)
   }
 
   const sorted = $derived(
-    [...routes].sort((a, b) => routeDistance(a) - routeDistance(b))
+    [...routes].sort((a, b) => {
+      const da = routeDistance(a, sortPos)
+      const db = routeDistance(b, sortPos)
+      // Equal (notably both Infinity when there's no fix) → keep input order.
+      // Array.sort is stable, so returning 0 avoids the NaN a subtraction of
+      // two Infinities would produce.
+      if (da === db) return 0
+      return da < db ? -1 : 1
+    })
   )
 
   const displayed = $derived.by<TourRoute[]>(() => {
@@ -88,7 +117,7 @@
   })
 
   const nearbyCount = $derived(
-    routes.filter((r) => isFinite(routeDistance(r))).length
+    routes.filter((r) => isFinite(routeDistance(r, sortPos))).length
   )
 
   function fmtDistance(m: number): string {
@@ -161,7 +190,7 @@
         {/if}
 
         {#each displayed as route (route.id)}
-          {@const dist = routeDistance(route)}
+          {@const dist = routeDistance(route, sortPos)}
           {@const selected = route.id === selectedRouteId}
           <button
             class="tour-card"

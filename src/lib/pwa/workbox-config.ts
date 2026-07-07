@@ -37,7 +37,14 @@ export const workboxOptions: WorkboxOptions = {
   // in full on first visit and re-download on every content change. It is
   // runtime-cached instead (rules below). PMTiles files never matched the
   // glob, but tour images did — hence the explicit ignore.
-  globIgnores: ['tours/**'],
+  // The marketing/store assets (PWA manifest screenshots, the brand logo) are
+  // not part of the runtime app shell, so keep them out of the precache too.
+  globIgnores: [
+    'tours/**',
+    'screenshot-desktop.png',
+    'screenshot-mobile.png',
+    'henge-bw-logo.png',
+  ],
   runtimeCaching: [
     {
       // PMTiles basemaps: CacheFirst with Range-request support.

@@ -40,6 +40,13 @@ export async function isBasemapCached(url: string): Promise<boolean> {
  * can store). The service worker's rangeRequests rule then serves 206 slices
  * from this entry, which is what makes the map work offline — pmtiles' own
  * Range requests produce 206 responses that can never be cached directly.
+ *
+ * Note the coupling with Workbox's ExpirationPlugin on PMTILES_CACHE
+ * (workbox-config.ts): this cache.add() inserts the entry *outside* Workbox,
+ * so it has no expiration timestamp until the SW first serves a Range request
+ * from it (ExpirationPlugin back-fills one then). Until that first serve the
+ * entry is untracked and the maxEntries accounting can be momentarily off —
+ * acceptable, but do not "simplify" the warm-up away (see CLAUDE.md).
  */
 export async function cacheBasemap(url: string): Promise<void> {
   if (!cachesAvailable()) throw new Error('Cache API unavailable')

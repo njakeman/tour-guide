@@ -22,6 +22,43 @@
   must stay under the user's control. `markCurrentStop` drops a static pin
   on the active stop.
 -->
+<script lang="ts" module>
+  // maplibre-gl's global protocol registry is shared across every mounted
+  // MapPanel. TourStop mounts two at once (rail + phone hero), so a naive
+  // addProtocol/removeProtocol per instance means the first panel to tear
+  // down pulls the pmtiles protocol out from under the survivor, breaking
+  // its subsequent tile fetches. Ref-count it: register on first acquire,
+  // remove only when the last panel releases.
+  // The bits of the maplibre-gl default export we touch outside init (the full
+  // default export type isn't cleanly reachable as `import(...)['default']`
+  // because maplibre-gl types export via `export =`).
+  interface MaplibreGlLike {
+    Marker: new (options?: any) => import('maplibre-gl').Marker
+    addProtocol(name: string, handler: any): void
+    removeProtocol(name: string): void
+  }
+  type PmtilesProtocolClass = typeof import('pmtiles')['Protocol']
+
+  let pmtilesRefCount = 0
+
+  function acquirePmtilesProtocol(
+    maplibregl: MaplibreGlLike,
+    ProtocolClass: PmtilesProtocolClass,
+  ): () => void {
+    if (pmtilesRefCount === 0) {
+      const protocol = new ProtocolClass()
+      maplibregl.addProtocol('pmtiles', protocol.tile)
+    }
+    pmtilesRefCount++
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      if (--pmtilesRefCount === 0) maplibregl.removeProtocol('pmtiles')
+    }
+  }
+</script>
+
 <script lang="ts">
   import { onMount } from 'svelte'
   import type { Map as MaplibreMap, Marker as MaplibreMarker } from 'maplibre-gl'
@@ -77,6 +114,67 @@
   let wrapEl: HTMLDivElement | undefined = $state(undefined)
   let mapEl: HTMLDivElement | undefined = $state(undefined)
 
+  // Refs shared between onMount's async init and the reactive $effect below.
+  // Plain lets (not $state): the effect is driven by prop/mapReady changes and
+  // just reads whichever instance currently exists.
+  let mapInstance: MaplibreMap | null = null
+  let currentStopMarker: MaplibreMarker | null = null
+  let maplibreLib: MaplibreGlLike | null = null
+  // Last center/zoom actually pushed to the map, so incidental parent
+  // re-renders (which recreate the center array literal) don't yank the
+  // viewport back — only genuine value changes call setCenter/setZoom.
+  let appliedCenterKey = ''
+  let appliedZoom: number | undefined
+
+  /** Create, move, or remove the static "you are here" pin (phone hero map). */
+  function placeCurrentStopMarker() {
+    if (!markCurrentStop || !mapInstance || !maplibreLib) return
+    const stop = route.stops.find((s) => s.id === currentStopId)
+    if (stop?.lat == null || stop?.lng == null) {
+      currentStopMarker?.remove()
+      currentStopMarker = null
+      return
+    }
+    if (currentStopMarker) {
+      currentStopMarker.setLngLat([stop.lng, stop.lat])
+      return
+    }
+    const el = document.createElement('div')
+    el.setAttribute('aria-hidden', 'true')
+    el.style.width = '18px'
+    el.style.height = '18px'
+    el.style.borderRadius = '50%'
+    el.style.background = 'var(--pin-current)'
+    el.style.border = '2px solid var(--bg)'
+    el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.4)'
+    currentStopMarker = new maplibreLib.Marker({ element: el })
+      .setLngLat([stop.lng, stop.lat])
+      .addTo(mapInstance)
+  }
+
+  // Keep a live map in sync when the focused stop changes without a remount —
+  // the phone stop-hero map's center/zoom/currentStopId are swapped by Prev/Next
+  // (App.svelte keeps the same MapPanel instance), so the constructor values read
+  // once in onMount would otherwise leave it stuck on the first stop.
+  $effect(() => {
+    const center = centerOverride
+    const zoom = zoomOverride
+    // Track currentStopId so the marker follows Prev/Next (placeCurrentStopMarker
+    // reads it, but only after the guard below — read it here to register the dep).
+    void currentStopId
+    if (!mapReady || !mapInstance) return
+    const key = center ? `${center[0]},${center[1]}` : ''
+    if (center && key !== appliedCenterKey) {
+      mapInstance.setCenter(center)
+      appliedCenterKey = key
+    }
+    if (zoom != null && zoom !== appliedZoom) {
+      mapInstance.setZoom(zoom)
+      appliedZoom = zoom
+    }
+    placeCurrentStopMarker()
+  })
+
   onMount(() => {
     // No basemap configured for this tour — show SVG immediately
     if (!route.map?.basemap) {
@@ -101,10 +199,8 @@
 
     let disposed = false
     let initStarted = false
-    let map: MaplibreMap | null = null
     let removeProtocol: (() => void) | null = null
     let userMarker: MaplibreMarker | null = null
-    let currentStopMarker: MaplibreMarker | null = null
     let unsubscribeGeo: (() => void) | null = null
 
     function fail() {
@@ -115,8 +211,9 @@
       userMarker = null
       currentStopMarker?.remove()
       currentStopMarker = null
-      map?.remove()
-      map = null
+      mapInstance?.remove()
+      mapInstance = null
+      maplibreLib = null
       removeProtocol?.()
       removeProtocol = null
     }
@@ -133,14 +230,15 @@
         if (disposed || !mapEl) return
 
         const maplibregl = maplibreModule.default
-        const protocol = new pmtilesModule.Protocol()
-        maplibregl.addProtocol('pmtiles', protocol.tile)
-        removeProtocol = () => maplibregl.removeProtocol('pmtiles')
+        maplibreLib = maplibregl
+        removeProtocol = acquirePmtilesProtocol(maplibregl, pmtilesModule.Protocol)
 
         const center: [number, number] = centerOverride ?? route.map?.center ?? [-0.375, 50.858]
         const zoom = zoomOverride ?? route.map?.zoom ?? 14
+        appliedCenterKey = `${center[0]},${center[1]}`
+        appliedZoom = zoom
 
-        map = new maplibregl.Map({
+        mapInstance = new maplibregl.Map({
           container: mapEl,
           style: {
             version: 8,
@@ -167,36 +265,23 @@
           attributionControl: { compact: true },
         })
 
-        map.on('load', () => {
+        mapInstance.on('load', () => {
+          if (disposed) return
           mapReady = true
 
           // Static "you are here" pin for a focused stop map (phone hero).
-          if (markCurrentStop) {
-            const stop = route.stops.find((s) => s.id === currentStopId)
-            if (stop?.lat != null && stop?.lng != null && map) {
-              const el = document.createElement('div')
-              el.setAttribute('aria-hidden', 'true')
-              el.style.width = '18px'
-              el.style.height = '18px'
-              el.style.borderRadius = '50%'
-              el.style.background = 'var(--pin-current)'
-              el.style.border = '2px solid var(--bg)'
-              el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.4)'
-              currentStopMarker = new maplibregl.Marker({ element: el })
-                .setLngLat([stop.lng, stop.lat])
-                .addTo(map)
-            }
-          }
+          // The reactive $effect above keeps it in sync afterwards.
+          placeCurrentStopMarker()
 
           // Live GPS position — subtle pulsing dot. Never recentres the map:
           // the offline tile cache only covers a fixed area, so the viewport
           // stays under the user's control and just tracks where they pan.
-          if (showUserLocation && map) {
+          if (showUserLocation && mapInstance) {
             const el = document.createElement('div')
             el.className = 'user-loc-marker'
             el.style.display = 'none'
             el.innerHTML = '<div class="user-loc-ripple"></div><div class="user-loc-dot"></div>'
-            userMarker = new maplibregl.Marker({ element: el }).setLngLat([0, 0]).addTo(map)
+            userMarker = new maplibregl.Marker({ element: el }).setLngLat([0, 0]).addTo(mapInstance)
             const marker = userMarker
             unsubscribeGeo = geolocation.subscribe((state) => {
               if (!state.position) {
@@ -211,7 +296,8 @@
         // Async failures (basemap 404, offline with a cold cache, corrupt
         // tiles) surface here, not in the constructor. Fall back to the SVG
         // only before first render; ignore transient tile errors afterwards.
-        map.on('error', () => {
+        mapInstance.on('error', () => {
+          if (disposed) return
           if (!mapReady) fail()
         })
       } catch {
@@ -231,7 +317,7 @@
             initStarted = true
             void init()
           } else {
-            map?.resize()
+            mapInstance?.resize()
           }
         }
       })
@@ -249,9 +335,12 @@
       unsubscribeGeo?.()
       userMarker?.remove()
       currentStopMarker?.remove()
-      map?.remove()
-      map = null
+      currentStopMarker = null
+      mapInstance?.remove()
+      mapInstance = null
+      maplibreLib = null
       removeProtocol?.()
+      removeProtocol = null
     }
   })
 
@@ -336,17 +425,20 @@
 <div class="map-panel" {id} bind:this={wrapEl}>
   {#if route.map?.basemap && !mapFailed}
     <!-- MapLibre GL map — real raster basemap from local PMTiles file -->
-    <div class="map-canvas" bind:this={mapEl} aria-label={ariaLabel}></div>
+    <div class="map-canvas" bind:this={mapEl} role="img" aria-label={ariaLabel}></div>
   {/if}
   {#if mapFailed || !mapReady}
     <!-- SVG schematic: fallback (no basemap, no WebGL, load error) and
-         loading state while maplibre-gl is dynamically imported -->
+         loading state while maplibre-gl is dynamically imported. When a real
+         map is coming (not failed), the SVG is only a loading skin, so it's
+         hidden from AT — the canvas above carries the accessible name. -->
     <svg
       class="map-svg"
       viewBox="0 0 {VW} {VH}"
       preserveAspectRatio="xMidYMid slice"
-      aria-label={ariaLabel}
-      role="img"
+      aria-label={mapFailed ? ariaLabel : undefined}
+      role={mapFailed ? 'img' : undefined}
+      aria-hidden={mapFailed ? undefined : 'true'}
     >
       <!-- Background -->
       <rect width={VW} height={VH} fill="var(--map-fill)"/>

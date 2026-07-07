@@ -126,11 +126,14 @@ function loadTourRoute(routeDir: string): TourRoute {
         stopPath = sharedPath
       } else if (existsSync(stopsDir)) {
         // Try numbered-prefix convention: "01-cissbury-entrance" etc.
+        // Compare the de-prefixed filename to the id literally rather than
+        // interpolating the id into a RegExp — a stop id with regex
+        // metacharacters (e.g. "stop.1") would otherwise match the wrong
+        // file or throw on an unbalanced bracket.
         const files = readdirSync(stopsDir)
-        const match = files.find((f) => {
-          // exact: 01-<stopId>.md
-          return new RegExp(`^\\d{2}-${stopId}\\.md$`).test(f)
-        })
+        const match = files.find(
+          (f) => /^\d{2}-/.test(f) && f.replace(/^\d{2}-/, '') === `${stopId}.md`
+        )
         if (match) {
           stopPath = join(stopsDir, match)
         } else {
@@ -186,7 +189,9 @@ function loadTourRoute(routeDir: string): TourRoute {
       evidence: front.evidence ?? '',
       interpretation: front.interpretation ?? '',
       bodyHtml,
-      media: front.media ?? [],
+      // Rewrite each media src through the base path too (same as hero.src /
+      // map.basemap) so frontmatter-declared media resolves on sub-path hosts.
+      media: (front.media ?? []).map((m) => ({ ...m, src: withBase(m.src) })),
       hero,
     })
   }
@@ -223,10 +228,17 @@ function loadTourRoute(routeDir: string): TourRoute {
 export function contentPlugin(): Plugin {
   const virtualModuleId = 'virtual:tour-content'
   const resolvedVirtualModuleId = '\0' + virtualModuleId
+  // Only the content/ directory (POSIX-normalised) — anchoring the HMR check
+  // here stops it also firing for edits to src/lib/content/*.ts.
+  const contentRoot = resolve(CONTENT_DIR).split('\\').join('/')
+  let isBuild = false
 
   function generateModule(): string {
     const routesPath = resolve(CONTENT_DIR, ROUTES_DIR)
     if (!existsSync(routesPath)) {
+      // In dev an empty content tree is tolerable; a production build shipping
+      // zero tours is almost certainly a misconfiguration — fail loudly.
+      if (isBuild) throw new Error(`[content] Routes directory not found: ${routesPath}`)
       return `export const routes = []; export const allStops = [];`
     }
 
@@ -239,8 +251,15 @@ export function contentPlugin(): Plugin {
       try {
         routes.push(loadTourRoute(routeDir))
       } catch (err) {
+        // Dev: warn and keep the server up. Build: a typo in tour.yaml must
+        // fail CI rather than silently ship a green build missing that tour.
         console.warn(`[content] Failed to load route at ${routeDir}:`, err)
+        if (isBuild) throw err
       }
+    }
+
+    if (isBuild && routes.length === 0) {
+      throw new Error(`[content] No tours loaded from ${routesPath} — refusing to build empty content.`)
     }
 
     const allStops = routes.flatMap((r) => r.stops)
@@ -256,6 +275,7 @@ export function contentPlugin(): Plugin {
       // Capture the resolved base so withBase() prefixes correctly.
       // Defaults to '/' for local dev and root-serving hosts.
       assetBase = config.base ?? '/'
+      isBuild = config.command === 'build'
     },
     resolveId(id) {
       if (id === virtualModuleId) return resolvedVirtualModuleId
@@ -264,7 +284,8 @@ export function contentPlugin(): Plugin {
       if (id === resolvedVirtualModuleId) return generateModule()
     },
     handleHotUpdate({ file, server }) {
-      if (file.includes(CONTENT_DIR)) {
+      const normalized = file.split('\\').join('/')
+      if (normalized.startsWith(contentRoot + '/')) {
         const mod = server.moduleGraph.getModuleById(resolvedVirtualModuleId)
         if (mod) {
           server.moduleGraph.invalidateModule(mod)

@@ -23,7 +23,10 @@
 
   // ── State ─────────────────────────────────────────────────────────────────
   let view = $state<View>(initial.view)
-  let selectedRouteId = $state<string>(initial.routeId ?? routes[0]?.id ?? '')
+  // Use the *validated* route id (initialRoute already falls back to routes[0]
+  // when the deep-linked id matches nothing), so a bogus #route=… isn't stored
+  // and later serialised back into the hash by setHash.
+  let selectedRouteId = $state<string>(initialRoute?.id ?? routes[0]?.id ?? '')
   let currentStopIndex = $state<number>(initialStopIndex >= 0 ? initialStopIndex : 0)
 
   // ── Derived ───────────────────────────────────────────────────────────────

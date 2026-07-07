@@ -155,7 +155,10 @@
   --pin-current:  #a8431c;
   --pin-todo-bg:  #3a1c0e;
   --pin-todo-fg:  #955025;
-  --user-dot:     #5b9bdb;
+  /* Bright amber, not blue — night mode is red-amber only to preserve
+     dark-adapted vision (see block header). This is the "you are here" dot,
+     so it's the brightest warm value in the set. */
+  --user-dot:     #e5763c;
 
   color-scheme: dark;
 }

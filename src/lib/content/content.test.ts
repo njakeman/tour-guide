@@ -66,10 +66,11 @@ describe('Content Pipeline', () => {
     }
   })
 
-  it('rewrites map.basemap through the base path when present', () => {
-    // Integration smoke-test: if a tour.yaml declares a map.basemap, the path
-    // must start with "/" (i.e. be absolute and base-path-ready). This mirrors
-    // the withBase() contract — authors write /tours/… and the plugin prefixes.
+  it('validates map.basemap manifest shape (root-relative path, center/zoom types)', () => {
+    // This asserts the *authored* tour.yaml shape, not the base-path rewrite
+    // itself — a declared map.basemap must be root-relative (/tours/…) so
+    // withBase() can prefix it, and center/zoom must be well-typed. The actual
+    // withBase() rewrite is covered directly in media.test.ts.
     const routes = readdirSync(ROUTES_DIR, { withFileTypes: true })
       .filter((d) => d.isDirectory())
       .map((d) => join(ROUTES_DIR, d.name))
