@@ -52,53 +52,57 @@ export function isNearby(distance: number, radius: number, accuracy: number): bo
 /**
  * Svelte store that tracks browser geolocation with a fast seed
  * (`getCurrentPosition`) before the continuous `watchPosition`.
+ *
+ * The watch only runs while the store has subscribers (writable's
+ * start/stop notifier): GPS starts on first subscribe and `clearWatch`
+ * fires on last unsubscribe, so high-accuracy location never outlives
+ * the UI that needs it.
  */
 function createGeolocationStore() {
-  const store = writable<GeoState>({
-    position: null,
-    error: null,
-    loading: true,
-    available: typeof navigator !== 'undefined' && 'geolocation' in navigator,
-  })
+  return writable<GeoState>(
+    { position: null, error: null, loading: true, available: false },
+    (_set, update) => {
+      if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+        update((s) => ({ ...s, loading: false, available: false }))
+        return
+      }
+      update((s) => ({ ...s, available: true }))
 
-  if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
-    store.update((s) => ({ ...s, loading: false }))
-    return store
-  }
+      const opts: PositionOptions = {
+        enableHighAccuracy: true,
+        maximumAge: 30_000,
+        timeout: 10_000,
+      }
 
-  const opts: PositionOptions = {
-    enableHighAccuracy: true,
-    maximumAge: 30_000,
-    timeout: 10_000,
-  }
+      function onSuccess(pos: GeolocationPosition) {
+        update((s) => ({
+          ...s,
+          position: {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+            timestamp: pos.timestamp,
+          },
+          loading: false,
+          error: null,
+        }))
+      }
 
-  function onSuccess(pos: GeolocationPosition) {
-    store.update((s) => ({
-      ...s,
-      position: {
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        accuracy: pos.coords.accuracy,
-        timestamp: pos.timestamp,
-      },
-      loading: false,
-      error: null,
-    }))
-  }
+      function onError(err: GeolocationPositionError) {
+        update((s) => ({
+          ...s,
+          error: { code: err.code, message: err.message },
+          loading: false,
+        }))
+      }
 
-  function onError(err: GeolocationPositionError) {
-    store.update((s) => ({
-      ...s,
-      error: { code: err.code, message: err.message },
-      loading: false,
-    }))
-  }
+      // Fast seed: get an immediate fix, then watch for updates
+      navigator.geolocation.getCurrentPosition(onSuccess, onError, opts)
+      const watchId = navigator.geolocation.watchPosition(onSuccess, onError, opts)
 
-  // Fast seed: get an immediate fix, then watch for updates
-  navigator.geolocation.getCurrentPosition(onSuccess, onError, opts)
-  navigator.geolocation.watchPosition(onSuccess, onError, opts)
-
-  return store
+      return () => navigator.geolocation.clearWatch(watchId)
+    }
+  )
 }
 
 export const geolocation = createGeolocationStore()
@@ -117,9 +121,13 @@ export type ProximityResult = {
 /**
  * Derived store that calculates distances to all stops and identifies the nearest.
  * Pass a Readable<StopLike[]> so this updates whenever either geo or stops change.
+ * `geo` is injectable for tests; defaults to the browser geolocation singleton.
  */
-export function createProximityStore(stops: Readable<StopLike[]>) {
-  return derived([geolocation, stops], ([$geo, $stops]): ProximityResult => {
+export function createProximityStore(
+  stops: Readable<StopLike[]>,
+  geo: Readable<GeoState> = geolocation
+) {
+  return derived([geo, stops], ([$geo, $stops]): ProximityResult => {
     if (!$geo.position || !$stops?.length) {
       return { distances: {}, nearestStopId: null, minDistance: Infinity }
     }

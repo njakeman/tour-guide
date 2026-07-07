@@ -42,6 +42,34 @@ body {
   100% { opacity: 0; }
 }
 
+/* ── User-location map marker (live GPS dot, MapPanel) ──
+   Reuses tg-pulse above — same ping/ripple shape as the stop-screen
+   proximity dot, just sized for a map marker and coloured with
+   --user-dot. Global (not component-scoped) because MapLibre relocates
+   the marker element outside Svelte's DOM, so scoped styles can't reach it. */
+.user-loc-marker {
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
+
+.user-loc-dot,
+.user-loc-ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--user-dot);
+}
+
+.user-loc-dot {
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.user-loc-ripple {
+  animation: tg-pulse 2s ease-out infinite;
+}
+
 /* ── Shared label utilities ── */
 .chip {
   font-family: var(--font-mono);

@@ -1,0 +1,61 @@
+import { readable } from 'svelte/store'
+import { PMTILES_CACHE } from '../pwa/workbox-config'
+
+/**
+ * Real connectivity state — `navigator.onLine` plus online/offline events.
+ * `true` means the browser believes it has a network connection.
+ */
+export const online = readable(
+  typeof navigator === 'undefined' ? true : navigator.onLine,
+  (set) => {
+    if (typeof window === 'undefined') return
+    const goOnline = () => set(true)
+    const goOffline = () => set(false)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }
+)
+
+function cachesAvailable(): boolean {
+  return typeof caches !== 'undefined'
+}
+
+/** Whether the full basemap file is already stored in the pmtiles cache. */
+export async function isBasemapCached(url: string): Promise<boolean> {
+  if (!cachesAvailable()) return false
+  try {
+    const cache = await caches.open(PMTILES_CACHE)
+    return (await cache.match(url)) !== undefined
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Warm the pmtiles cache with a full-file GET (a 200 response the Cache API
+ * can store). The service worker's rangeRequests rule then serves 206 slices
+ * from this entry, which is what makes the map work offline — pmtiles' own
+ * Range requests produce 206 responses that can never be cached directly.
+ */
+export async function cacheBasemap(url: string): Promise<void> {
+  if (!cachesAvailable()) throw new Error('Cache API unavailable')
+  const cache = await caches.open(PMTILES_CACHE)
+  if (await cache.match(url)) return
+  await cache.add(url)
+}
+
+/** Basemap download size in bytes via a HEAD request, or null if unknown. */
+export async function basemapSize(url: string): Promise<number | null> {
+  try {
+    const res = await fetch(url, { method: 'HEAD' })
+    if (!res.ok) return null
+    const len = res.headers.get('content-length')
+    return len ? Number(len) : null
+  } catch {
+    return null
+  }
+}

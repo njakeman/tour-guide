@@ -5,29 +5,26 @@
   import { routes } from 'virtual:tour-content'
   import type { TourStop } from './lib/types'
   import { geolocation, createProximityStore } from './lib/geo/store'
+  import { parseHash, buildHash, type View } from './lib/router'
   import TourLibrary from './lib/TourLibrary.svelte'
-  import RouteMap from './lib/RouteMap.svelte'
   import TourStopView from './lib/TourStop.svelte'
 
   // ── Routing ──────────────────────────────────────────────────────────────
-  type View = 'library' | 'route' | 'stop'
+  const initial = parseHash(window.location.hash)
 
-  function parseHash(): { view: View; stopId?: string; routeId?: string } {
-    const h = window.location.hash
-    if (h.startsWith('#stop=')) {
-      const parts = h.slice(6).split('&route=')
-      return { view: 'stop', stopId: parts[0], routeId: parts[1] }
-    }
-    if (h === '#/route') return { view: 'route' }
-    return { view: 'library' }
-  }
-
-  const initial = parseHash()
+  // Resolve a deep-linked stop synchronously — an $effect here would re-fire
+  // whenever the selected route changes and could jump the stop index if a
+  // later route shares a stop id.
+  const initialRoute =
+    routes.find((r) => r.id === (initial.routeId ?? '')) ?? routes[0]
+  const initialStopIndex = initial.stopId && initialRoute
+    ? initialRoute.stops.findIndex((s: TourStop) => s.id === initial.stopId)
+    : -1
 
   // ── State ─────────────────────────────────────────────────────────────────
   let view = $state<View>(initial.view)
   let selectedRouteId = $state<string>(initial.routeId ?? routes[0]?.id ?? '')
-  let currentStopIndex = $state<number>(0)
+  let currentStopIndex = $state<number>(initialStopIndex >= 0 ? initialStopIndex : 0)
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const currentRoute = $derived(
@@ -35,14 +32,6 @@
   )
 
   const currentStop = $derived(currentRoute?.stops[currentStopIndex])
-
-  // Initialise stop index from hash (runs once after route is resolved)
-  $effect(() => {
-    if (initial.stopId && currentRoute) {
-      const idx = currentRoute.stops.findIndex((s: TourStop) => s.id === initial.stopId)
-      if (idx >= 0) currentStopIndex = idx
-    }
-  })
 
   // Track visited stops within the session
   // SvelteSet.add() mutates in place — no read-then-reassign, no infinite loop
@@ -53,12 +42,7 @@
 
   // ── Hash management ───────────────────────────────────────────────────────
   function setHash(v: View, stopId?: string) {
-    const newHash =
-      v === 'stop' && stopId
-        ? `#stop=${stopId}&route=${selectedRouteId}`
-        : v === 'route'
-          ? '#/route'
-          : '#/'
+    const newHash = buildHash(v, stopId, selectedRouteId)
     if (window.location.hash !== newHash) {
       window.location.hash = newHash
     }
@@ -98,7 +82,7 @@
   }
 
   function handleHashChange() {
-    const parsed = parseHash()
+    const parsed = parseHash(window.location.hash)
     view = parsed.view
     if (parsed.routeId && parsed.routeId !== selectedRouteId) {
       selectedRouteId = parsed.routeId
@@ -128,32 +112,36 @@
     currentStop ? $proximity.distances[currentStop.id] : undefined
   )
   const geoAccuracy = $derived($geolocation.position?.accuracy)
+  const geoTimestamp = $derived($geolocation.position?.timestamp)
 </script>
 
 <div id="fw-app">
-  {#if view === 'library'}
-    <TourLibrary {routes} onSelect={selectRoute} />
-
-  {:else if view === 'route' && currentRoute}
-    <RouteMap
-      route={currentRoute}
+  {#if view === 'library' || view === 'route'}
+    <TourLibrary
+      {routes}
+      {view}
+      {selectedRouteId}
+      currentRoute={currentRoute}
       currentStopId={currentStop?.id ?? null}
       visitedStopIds={visited}
-      onBack={goLibrary}
+      onSelect={selectRoute}
       onGoToStop={goStopById}
+      onBack={goLibrary}
     />
 
   {:else if view === 'stop' && currentStop && currentRoute}
     <TourStopView
       stop={currentStop}
       stopIndex={currentStopIndex}
-      totalStops={currentRoute.stops.length}
-      routeName={currentRoute.name}
+      route={currentRoute}
+      visitedStopIds={visited}
       distanceMetres={currentDist}
       accuracy={geoAccuracy}
+      fixTimestamp={geoTimestamp}
       onPrev={() => goStop(currentStopIndex - 1)}
       onNext={() => goStop(currentStopIndex + 1)}
       onBack={goRoute}
+      onGoToStop={goStopById}
     />
 
   {:else}

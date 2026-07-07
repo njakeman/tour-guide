@@ -2,13 +2,16 @@ import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { VitePWA } from 'vite-plugin-pwa'
 import { contentPlugin } from './src/lib/content/vite-plugin'
+import { workboxOptions } from './src/lib/pwa/workbox-config'
+
+// Set BASE_PATH env var when serving from a sub-path (e.g. GitHub Pages):
+//   BASE_PATH=/tour-guide/ npm run build
+// Root-serving hosts (Netlify, Vercel) need no override.
+const base = process.env.BASE_PATH ?? '/'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // Set BASE_PATH env var when serving from a sub-path (e.g. GitHub Pages):
-  //   BASE_PATH=/tour-guide/ npm run build
-  // Root-serving hosts (Netlify, Vercel) need no override.
-  base: process.env.BASE_PATH ?? '/',
+  base,
   plugins: [
     contentPlugin(),
     svelte(),
@@ -23,8 +26,9 @@ export default defineConfig({
         background_color: '#f3eede',
         display: 'standalone',
         orientation: 'portrait',
-        scope: '/',
-        start_url: '/',
+        // Derived from the build base so sub-path deploys stay installable.
+        scope: base,
+        start_url: base,
         icons: [
           {
             // Relative (no leading slash) so vite-plugin-pwa resolves against
@@ -46,43 +50,9 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
-        // Precache the app shell (JS/CSS/HTML) and web fonts.
-        // PMTiles basemaps are NOT precached here — they need Range-request-aware
-        // caching (see runtimeCaching below). Precaching stores full 200 responses
-        // which pmtiles rejects when it issues Range requests (it throws on 200+full).
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
-        runtimeCaching: [
-          {
-            // PMTiles basemaps: CacheFirst with Range-request support.
-            // pmtiles issues HTTP Range requests for each tile + header; Workbox's
-            // rangeRequests plugin returns proper 206 Partial Content responses from
-            // the cached full file, so offline rendering works after one online load.
-            urlPattern: /\.pmtiles(\?.*)?$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'pmtiles-basemaps',
-              rangeRequests: true,
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
-              },
-            },
-          },
-          {
-            // Runtime-cache other tour media (images, audio, video) with CacheFirst
-            urlPattern: /\/tours\/.+/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'tour-media',
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 60, // 60 days
-              },
-            },
-          },
-        ],
-      },
+      // Precache + runtime caching rules live in src/lib/pwa/workbox-config.ts,
+      // shared with the runtime offline helpers so cache names cannot drift.
+      workbox: workboxOptions,
     }),
   ],
 })

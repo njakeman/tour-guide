@@ -1,6 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { haversineDistance, isNearby, createProximityStore } from './store'
+import {
+  haversineDistance,
+  isNearby,
+  createProximityStore,
+  geolocation,
+  type GeoState,
+} from './store'
 import { writable, get } from 'svelte/store'
+
+function geoStateWithPosition(lat: number, lng: number, accuracy = 10): GeoState {
+  return {
+    position: { lat, lng, accuracy, timestamp: Date.now() },
+    error: null,
+    loading: false,
+    available: true,
+  }
+}
 
 // ---------------------------------------------------------------------------
 // haversineDistance
@@ -81,19 +96,79 @@ describe('createProximityStore', () => {
     expect(result.nearestStopId).toBeNull()
   })
 
-  it('calculates distances when position is set', () => {
-    // This test patches the module-level geolocation store value indirectly
-    // by checking that the derived store updates when the stops change.
+  it('calculates distances and picks the nearest stop', () => {
+    const geo = writable<GeoState>(geoStateWithPosition(50.8561, -0.379))
     const stops = writable([
       { id: 'near', lat: 50.8561, lng: -0.379, proximity_radius: 30 },
       { id: 'far', lat: 50.8967, lng: -0.4389, proximity_radius: 30 },
     ])
-    const store = createProximityStore(stops)
-    // Without a real position the distances will be empty — just verify structure
-    let result: { distances: Record<string, number> } | null = null
-    const unsub = store.subscribe((v) => { result = v })
-    expect(result).not.toBeNull()
-    expect(typeof result!.distances).toBe('object')
+    const store = createProximityStore(stops, geo)
+    const result = get(store)
+
+    expect(result.nearestStopId).toBe('near')
+    expect(result.distances.near).toBe(0)
+    expect(result.distances.far).toBeGreaterThan(4000)
+    expect(result.minDistance).toBe(0)
+  })
+
+  it('skips stops without coordinates', () => {
+    const geo = writable<GeoState>(geoStateWithPosition(50.8561, -0.379))
+    const stops = writable([
+      { id: 'no-coords', lat: null, lng: null, proximity_radius: 30 },
+      { id: 'here', lat: 50.8561, lng: -0.379, proximity_radius: 30 },
+    ])
+    const store = createProximityStore(stops, geo)
+    const result = get(store)
+
+    expect(result.distances['no-coords']).toBeUndefined()
+    expect(result.nearestStopId).toBe('here')
+  })
+
+  it('updates when the GPS position moves', () => {
+    const geo = writable<GeoState>(geoStateWithPosition(50.8561, -0.379))
+    const stops = writable([
+      { id: 'entrance', lat: 50.8561, lng: -0.379, proximity_radius: 30 },
+      { id: 'summit', lat: 50.8967, lng: -0.4389, proximity_radius: 30 },
+    ])
+    const store = createProximityStore(stops, geo)
+
+    expect(get(store).nearestStopId).toBe('entrance')
+    geo.set(geoStateWithPosition(50.8967, -0.4389))
+    expect(get(store).nearestStopId).toBe('summit')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// geolocation store lifecycle
+// ---------------------------------------------------------------------------
+describe('geolocation store', () => {
+  it('starts the GPS watch on first subscribe and clears it on last unsubscribe', () => {
+    const watchPosition = vi.fn(() => 42)
+    const clearWatch = vi.fn()
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition: vi.fn(), watchPosition, clearWatch },
+    })
+
+    const unsubA = geolocation.subscribe(() => {})
+    const unsubB = geolocation.subscribe(() => {})
+    expect(watchPosition).toHaveBeenCalledTimes(1)
+
+    unsubA()
+    expect(clearWatch).not.toHaveBeenCalled()
+
+    unsubB()
+    expect(clearWatch).toHaveBeenCalledWith(42)
+  })
+
+  it('reports unavailable without blowing up when geolocation is missing', () => {
+    // @ts-expect-error — simulate a browser without the Geolocation API
+    delete navigator.geolocation
+
+    let state: GeoState | undefined
+    const unsub = geolocation.subscribe((s) => { state = s })
+    expect(state!.available).toBe(false)
+    expect(state!.loading).toBe(false)
     unsub()
   })
 })

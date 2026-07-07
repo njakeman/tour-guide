@@ -1,56 +1,103 @@
 <!--
-  Stop screen — the core fieldWorks experience.
-  Shows: status bar, app header (back, eyebrow, stop count, theme toggle),
-  progress bar, hero plate (image or contour fallback), title block with meta chips,
-  body HTML, Evidence and Interpretation accordions, proximity footer, and nav.
+  Stop screen — the core fieldWorks experience, responsive per the design
+  handoff ("Tour Responsive Proof"): ONE component tree, a single 720px
+  viewport breakpoint, nothing added or removed between sizes.
 
-  Media types in the body HTML (rendered by the plugin):
-    .media-img   — image figures
-    .media-audio — audio figures
-    .media-video — video figures
-    .media-model — 3D stubs (data-src/data-caption)
+  - < 720px (phone): paginated. The stop detail is primary; the map and the
+    stop list live behind the bottom tab bar (Stop / Map & route / Stops).
+  - ≥ 720px (tablet landscape): master–detail. A persistent left rail shows
+    the map + stop list; the detail fills the right; no tab bar; the
+    Evidence/Interpretation accordions sit side by side.
+
+  The map (MapPanel) exists in the DOM at every width and lazily initialises
+  only when its container first has size — see MapPanel.svelte.
 -->
 <script lang="ts">
-  import type { TourStop } from './types'
+  import { onMount } from 'svelte'
+  import type { TourRoute, TourStop } from './types'
+  import { isNearby } from './geo/store'
+  import MapPanel from './MapPanel.svelte'
+  import StopList from './StopList.svelte'
   import ThemeToggle from './ThemeToggle.svelte'
 
   interface Props {
     stop: TourStop
     stopIndex: number
-    totalStops: number
-    routeName: string
+    route: TourRoute
+    visitedStopIds: Set<string>
     /** Distance in metres; undefined when no GPS */
     distanceMetres?: number
     /** GPS accuracy in metres; undefined when no GPS */
     accuracy?: number
+    /** Epoch ms of the latest GPS fix; undefined when no GPS */
+    fixTimestamp?: number
     onPrev: () => void
     onNext: () => void
     onBack: () => void
+    onGoToStop: (stopId: string) => void
   }
 
   const {
     stop,
     stopIndex,
-    totalStops,
-    routeName,
+    route,
+    visitedStopIds,
     distanceMetres,
     accuracy,
+    fixTimestamp,
     onPrev,
     onNext,
     onBack,
+    onGoToStop,
   }: Props = $props()
 
+  const totalStops = $derived(route.stops.length)
+  const nextStop = $derived(route.stops[stopIndex + 1])
+
+  // ── Phone pane (only meaningful < 720px; the tab bar is hidden above) ────
+  type PhoneView = 'stop' | 'map' | 'stops'
+  let phoneView = $state<PhoneView>('stop')
+  const tabs: { view: PhoneView; icon: string; label: string }[] = [
+    { view: 'stop', icon: '▤', label: 'Stop' },
+    { view: 'map', icon: '◎', label: 'Map & route' },
+    { view: 'stops', icon: '≣', label: 'Stops' },
+  ]
+
+  /** Selecting a stop from the rail returns the phone to the detail pane. */
+  function goStopFromRail(stopId: string) {
+    onGoToStop(stopId)
+    phoneView = 'stop'
+  }
+
+  // ── Proximity ─────────────────────────────────────────────────────────────
+  // A fix older than this is shown as stale rather than as a live distance
+  const STALE_FIX_MS = 60_000
+
+  let now = $state(Date.now())
+  onMount(() => {
+    const t = setInterval(() => (now = Date.now()), 10_000)
+    return () => clearInterval(t)
+  })
+
   const radius = $derived(stop.proximity_radius ?? 30)
-  const isNearby = $derived(
+  const fixStale = $derived(
+    fixTimestamp !== undefined && now - fixTimestamp > STALE_FIX_MS
+  )
+  const nearby = $derived(
     distanceMetres !== undefined &&
     accuracy !== undefined &&
-    accuracy <= radius * 2 &&
-    distanceMetres <= radius
+    !fixStale &&
+    isNearby(distanceMetres, radius, accuracy)
   )
 
   function fmtDistance(m: number): string {
     if (m < 1000) return `${m}m`
     return `${(m / 1000).toFixed(1)} km`
+  }
+
+  function fmtFixAge(ms: number): string {
+    const mins = Math.round(ms / 60_000)
+    return mins <= 1 ? '1 min' : `${mins} min`
   }
 
   // Hero image: explicit hero field takes priority
@@ -72,10 +119,10 @@
 
   <!-- App header -->
   <div class="app-header">
-    <button class="nav-sq" aria-label="Back to route" onclick={onBack}>‹</button>
+    <button class="nav-sq nav-back" aria-label="Back to route" onclick={onBack}>‹</button>
     <div class="header-center">
-      <div class="header-eyebrow">{routeName}</div>
-      <div class="header-sub">Stop {stopIndex + 1} of {totalStops}</div>
+      <div class="header-eyebrow">{route.name}</div>
+      <div class="header-sub">Stop {stopIndex + 1} of {totalStops} · {stop.title}</div>
     </div>
     <ThemeToggle />
   </div>
@@ -87,136 +134,196 @@
     {/each}
   </div>
 
-  <!-- Scrollable body -->
-  <div class="scroll-body">
+  <!-- One DOM for every width: rail (map + list) + detail -->
+  <div class="ts-body" data-phone-view={phoneView}>
 
-    <!-- Hero plate -->
-    <div class="plate">
-      {#if heroSrc && !heroFailed}
-        <img src={heroSrc} alt={heroCaption ?? stop.title} class="plate-img" loading="eager" onerror={onHeroError} />
-      {:else}
-        <!-- Procedural contour art fallback -->
-        <svg class="plate-svg" viewBox="0 0 366 212" preserveAspectRatio="none" aria-hidden="true">
-          <rect width="366" height="212" fill="none"/>
-          <g fill="none" stroke="var(--plate-stroke)" stroke-width="1" opacity="0.5">
-            <path d="M0,150 Q90,120 180,138 T366,128"/>
-            <path d="M0,166 Q90,138 180,154 T366,146"/>
-            <path d="M0,182 Q90,156 180,170 T366,164"/>
-            <path d="M0,198 Q90,176 180,188 T366,184"/>
-          </g>
-        </svg>
-      {/if}
-      <!-- Gradient overlay -->
-      <div class="plate-overlay" aria-hidden="true"></div>
-      <!-- Caption row -->
-      <div class="plate-footer">
-        {#if heroCaption}
-          <span class="plate-caption">{heroCaption}</span>
-        {/if}
-        <span class="plate-look-pill" aria-hidden="true">↻ look around</span>
+    <!-- LEFT RAIL — map + stop list. Persistent ≥ 720px; behind the
+         Map / Stops tabs below. Present in the DOM at every width. -->
+    <aside class="ts-rail" aria-label="Route map and stops">
+      <div class="rail-map">
+        <MapPanel {route} currentStopId={stop.id} {visitedStopIds} onGoToStop={goStopFromRail} />
       </div>
-    </div>
-
-    <!-- Title block -->
-    <div class="title-block">
-      {#if stop.era}
-        <div class="era-eyebrow">{stop.era}</div>
-      {/if}
-      <h1 class="stop-title">{stop.title}</h1>
-
-      {#if stop.grid_ref || stop.elevation || stop.walk_time}
-        <div class="meta-chips">
-          {#if stop.grid_ref}<span class="chip">{stop.grid_ref}</span>{/if}
-          {#if stop.elevation}<span class="chip">{stop.elevation}</span>{/if}
-          {#if stop.walk_time}<span class="chip">↥ {stop.walk_time}</span>{/if}
-        </div>
-      {/if}
-    </div>
-
-    <!-- Body text (pre-rendered HTML from build-time markdown) -->
-    {#if stop.bodyHtml}
-      <div class="body-text">
-        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-        {@html stop.bodyHtml}
+      <div class="rail-list">
+        <StopList
+          {route}
+          currentStopId={stop.id}
+          {visitedStopIds}
+          onGoToStop={goStopFromRail}
+          activeDistanceMetres={fixStale ? undefined : distanceMetres}
+        />
       </div>
-    {/if}
+    </aside>
 
-    <!-- Accordions -->
-    <div class="accordions">
-      <details class="accordion" open>
-        <summary class="accordion-summary">
-          <span class="accordion-dot accordion-dot--square" aria-hidden="true"></span>
-          <span class="accordion-label">Evidence</span>
-          <span class="accordion-toggle" aria-hidden="true"></span>
-        </summary>
-        <div class="accordion-body">
-          <p>{stop.evidence}</p>
-        </div>
-      </details>
+    <!-- RIGHT — active stop detail -->
+    <div class="ts-detail stop-detail" data-stop-index={stopIndex}>
+      <div class="scroll-body">
 
-      {#if stop.interpretation}
-        <details class="accordion">
-          <summary class="accordion-summary">
-            <span class="accordion-dot accordion-dot--round" aria-hidden="true"></span>
-            <span class="accordion-label">Interpretation</span>
-            <span class="accordion-toggle" aria-hidden="true"></span>
-          </summary>
-          <div class="accordion-body">
-            <p>{stop.interpretation}</p>
+        <!-- Hero plate: on phone this becomes a map centred on the current
+             stop (useful mid-walk); tablet keeps the photo since the rail
+             map is already visible. Both blocks exist in the DOM at every
+             width — CSS + MapPanel's lazy ResizeObserver init decide what
+             actually renders (see the @media blocks at the end of <style>). -->
+        <div class="plate stop-hero">
+          {#if stop.lat != null && stop.lng != null}
+            <div class="hero-map">
+              <MapPanel
+                {route}
+                currentStopId={stop.id}
+                {visitedStopIds}
+                onGoToStop={goStopFromRail}
+                center={[stop.lng, stop.lat]}
+                zoom={16}
+                markCurrentStop
+                label={`Map showing the location of ${stop.title}`}
+                id="tour-map-hero"
+              />
+            </div>
+          {/if}
+          {#if heroSrc && !heroFailed}
+            <img src={heroSrc} alt={heroCaption ?? stop.title} class="plate-img" loading="eager" onerror={onHeroError} />
+          {:else}
+            <!-- Procedural contour art fallback -->
+            <svg class="plate-svg" viewBox="0 0 366 212" preserveAspectRatio="none" aria-hidden="true">
+              <rect width="366" height="212" fill="none"/>
+              <g fill="none" stroke="var(--plate-stroke)" stroke-width="1" opacity="0.5">
+                <path d="M0,150 Q90,120 180,138 T366,128"/>
+                <path d="M0,166 Q90,138 180,154 T366,146"/>
+                <path d="M0,182 Q90,156 180,170 T366,164"/>
+                <path d="M0,198 Q90,176 180,188 T366,184"/>
+              </g>
+            </svg>
+          {/if}
+          <!-- Gradient overlay -->
+          <div class="plate-overlay" aria-hidden="true"></div>
+          <!-- Caption row -->
+          <div class="plate-footer">
+            {#if heroCaption}
+              <span class="plate-caption">{heroCaption}</span>
+            {/if}
           </div>
-        </details>
-      {/if}
-    </div>
+        </div>
 
-    <div class="scroll-spacer"></div>
+        <!-- Title block -->
+        <div class="title-block">
+          {#if stop.era}
+            <div class="era-eyebrow">{stop.era}</div>
+          {/if}
+          <h1 class="stop-title ts-title">{stop.title}</h1>
+
+          {#if stop.grid_ref || stop.elevation || stop.walk_time}
+            <div class="meta-chips">
+              {#if stop.grid_ref}<span class="chip">{stop.grid_ref}</span>{/if}
+              {#if stop.elevation}<span class="chip">{stop.elevation}</span>{/if}
+              {#if stop.walk_time}<span class="chip">↥ {stop.walk_time}</span>{/if}
+            </div>
+          {/if}
+        </div>
+
+        <!-- Body text (pre-rendered HTML from build-time markdown) -->
+        {#if stop.bodyHtml}
+          <div class="body-text">
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+            {@html stop.bodyHtml}
+          </div>
+        {/if}
+
+        <!-- Accordions: stacked on phone, side-by-side ≥ 720px -->
+        <div class="accordions ts-accordions">
+          <details class="accordion stop-accordion" data-section="evidence" open>
+            <summary class="accordion-summary">
+              <span class="accordion-dot accordion-dot--square" aria-hidden="true"></span>
+              <span class="accordion-label">Evidence</span>
+              <span class="accordion-toggle" aria-hidden="true"></span>
+            </summary>
+            <div class="accordion-body">
+              <p>{stop.evidence}</p>
+            </div>
+          </details>
+
+          {#if stop.interpretation}
+            <details class="accordion stop-accordion" data-section="interpretation">
+              <summary class="accordion-summary">
+                <span class="accordion-dot accordion-dot--round" aria-hidden="true"></span>
+                <span class="accordion-label">Interpretation</span>
+                <span class="accordion-toggle" aria-hidden="true"></span>
+              </summary>
+              <div class="accordion-body">
+                <p>{stop.interpretation}</p>
+              </div>
+            </details>
+          {/if}
+        </div>
+
+        <div class="scroll-spacer"></div>
+      </div>
+
+      <!-- Proximity footer + nav -->
+      <footer class="footer">
+        <!-- GPS status strip -->
+        <div class="proximity-strip proximity">
+          {#if distanceMetres !== undefined && fixStale && fixTimestamp !== undefined}
+            <span class="proximity-text muted">
+              ~{fmtDistance(distanceMetres)} to this stop · last GPS fix {fmtFixAge(now - fixTimestamp)} ago
+            </span>
+          {:else if distanceMetres !== undefined}
+            <span class="ping" aria-hidden="true">
+              <span class="ping-dot"></span>
+              <span class="ping-ripple"></span>
+            </span>
+            <span class="proximity-text">
+              {#if nearby}
+                You're <strong class="dist-highlight">{fmtDistance(distanceMetres)}</strong> from this stop · arriving
+              {:else}
+                <strong class="dist-highlight">{fmtDistance(distanceMetres)}</strong> to this stop
+              {/if}
+            </span>
+          {:else}
+            <span class="proximity-text muted">GPS unavailable — use manual navigation</span>
+          {/if}
+        </div>
+
+        <!-- Prev / Next nav -->
+        <div class="nav-row">
+          <button
+            class="nav-sq"
+            aria-label="Previous stop"
+            disabled={stopIndex === 0}
+            onclick={onPrev}
+          >‹</button>
+          <button
+            class="nav-next next-stop"
+            data-target-index={stopIndex + 1}
+            aria-label="Next stop"
+            disabled={stopIndex === totalStops - 1}
+            onclick={onNext}
+          >
+            <span class="nav-next-label">
+              {stopIndex === totalStops - 1 ? 'Final stop' : 'Next stop'}
+            </span>
+            {#if nextStop}
+              <span class="nav-next-name">· {nextStop.title} ›</span>
+            {/if}
+          </button>
+        </div>
+      </footer>
+    </div>
   </div>
 
-  <!-- Proximity footer + nav -->
-  <footer class="footer">
-    <!-- GPS status strip -->
-    <div class="proximity-strip">
-      {#if distanceMetres !== undefined}
-        <span class="ping" aria-hidden="true">
-          <span class="ping-dot"></span>
-          <span class="ping-ripple"></span>
-        </span>
-        <span class="proximity-text">
-          {#if isNearby}
-            You're <strong class="dist-highlight">{fmtDistance(distanceMetres)}</strong> from this stop · arriving
-          {:else}
-            <strong class="dist-highlight">{fmtDistance(distanceMetres)}</strong> to this stop
-          {/if}
-        </span>
-      {:else}
-        <span class="proximity-text muted">GPS unavailable — use manual navigation</span>
-      {/if}
-    </div>
-
-    <!-- Prev / Next nav -->
-    <div class="nav-row">
+  <!-- BOTTOM TAB BAR — phone only (hidden ≥ 720px) -->
+  <nav class="ts-tabs" aria-label="Stop views">
+    {#each tabs as tab (tab.view)}
       <button
-        class="nav-sq"
-        aria-label="Previous stop"
-        disabled={stopIndex === 0}
-        onclick={onPrev}
-      >‹</button>
-      <button
-        class="nav-next"
-        aria-label="Next stop"
-        disabled={stopIndex === totalStops - 1}
-        onclick={onNext}
+        class="ts-tab"
+        class:ts-tab--active={phoneView === tab.view}
+        data-view={tab.view}
+        aria-current={phoneView === tab.view ? 'true' : undefined}
+        onclick={() => (phoneView = tab.view)}
       >
-        <span class="nav-next-label">
-          {stopIndex === totalStops - 1 ? 'Final stop' : 'Next stop'}
-        </span>
-        {#if stopIndex < totalStops - 1}
-          <span class="nav-next-name">
-            · {stop ? '›' : ''}
-          </span>
-        {/if}
+        <span class="ts-tab-icon" aria-hidden="true">{tab.icon}</span>
+        <span class="ts-tab-label">{tab.label}</span>
       </button>
-    </div>
-  </footer>
+    {/each}
+  </nav>
 </div>
 
 <style>
@@ -225,9 +332,9 @@
     flex-direction: column;
     height: 100dvh;
     background: var(--bg);
-    max-width: 430px;
     margin: 0 auto;
     overflow: hidden;
+    width: 100%;
   }
 
   /* Status bar */
@@ -281,6 +388,7 @@
   .header-center {
     flex: 1;
     text-align: center;
+    min-width: 0;
   }
 
   .header-eyebrow {
@@ -296,6 +404,9 @@
     color: var(--muted);
     margin-top: 2px;
     font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* Progress bar */
@@ -318,6 +429,43 @@
     background: var(--progress-done);
   }
 
+  /* ── Responsive body: rail + detail ──────────────────────────────────── */
+  .ts-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .ts-rail {
+    flex-direction: column;
+    min-height: 0;
+    background: var(--surface-3);
+  }
+
+  .rail-map {
+    height: 264px;
+    margin: 16px;
+    border-radius: 15px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    flex: none;
+  }
+
+  .rail-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 14px 14px;
+  }
+
+  .ts-detail {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+
   /* Scrollable body */
   .scroll-body {
     flex: 1;
@@ -330,9 +478,9 @@
   /* Hero plate */
   .plate {
     position: relative;
-    height: 212px;
-    margin: 0 18px;
-    border-radius: 18px;
+    height: 196px;
+    margin: 16px 20px 0;
+    border-radius: 16px;
     overflow: hidden;
     border: 1px solid var(--border);
     background: var(--plate-grad);
@@ -345,6 +493,14 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+
+  /* Phone-only stop-locator map; hidden by default (tablet shows the photo).
+     Flipped to display:block in the phone @media block below. */
+  .hero-map {
+    position: absolute;
+    inset: 0;
+    display: none;
   }
 
   .plate-svg {
@@ -379,19 +535,6 @@
     text-shadow: 0 1px 3px rgba(0,0,0,0.5);
   }
 
-  .plate-look-pill {
-    font-family: var(--font-mono);
-    font-size: 0.65625rem;
-    color: #f6efdd;
-    background: rgba(0,0,0,0.4);
-    border: 1px solid rgba(246,239,221,0.4);
-    padding: 3px 8px;
-    border-radius: 20px;
-    backdrop-filter: blur(2px);
-    white-space: nowrap;
-    flex: none;
-  }
-
   /* Title block */
   .title-block {
     padding: 20px 22px 0;
@@ -409,7 +552,7 @@
   .stop-title {
     font-family: var(--font-serif);
     font-weight: 600;
-    font-size: 2.0625rem;
+    font-size: 2rem;   /* 32px */
     line-height: 1.06;
     margin: 0;
     color: var(--text);
@@ -429,6 +572,7 @@
     font-size: 1.0625rem;
     line-height: 1.62;
     color: var(--text-body);
+    max-width: 660px;
   }
 
   .body-text :global(h1),
@@ -672,5 +816,109 @@
     font-size: 0.75rem;
     opacity: 0.85;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Bottom tab bar (phone only) ─────────────────────────────────────── */
+  .ts-tabs {
+    display: flex;
+    flex: none;
+    gap: 8px;
+    border-top: 1px solid var(--border-2);
+    background: var(--bg);
+    padding: 9px 14px calc(9px + env(safe-area-inset-bottom));
+  }
+
+  .ts-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 0;
+    border-radius: 11px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+  }
+
+  .ts-tab--active {
+    background: var(--surface-2);
+  }
+
+  .ts-tab-icon {
+    font-size: 1.0625rem;
+    line-height: 1;
+    color: var(--muted);
+  }
+
+  .ts-tab--active .ts-tab-icon {
+    color: var(--accent);
+  }
+
+  .ts-tab-label {
+    font-family: var(--font-mono);
+    font-size: 0.59375rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .ts-tab--active .ts-tab-label {
+    color: var(--eyebrow);
+  }
+
+  /* ── Responsive breakpoint (720px) ───────────────────────────────────────
+     These media blocks MUST come after all base rules above: several
+     override properties the base rules also set (display, font-size,
+     height), and with equal specificity the later rule wins. */
+
+  /* Phone (< 720px): paginated — one pane at a time, driven by the tab bar */
+  @media (max-width: 719.98px) {
+    .screen { max-width: 430px; }
+    .ts-rail { display: none; }
+
+    /* Hero plate becomes the stop-locator map; the photo is not shown here. */
+    .hero-map { display: block; }
+    .plate-img,
+    .plate-svg,
+    .plate-overlay,
+    .plate-footer { display: none; }
+
+    .ts-body[data-phone-view='map'] .ts-rail,
+    .ts-body[data-phone-view='stops'] .ts-rail {
+      display: flex;
+      flex: 1;
+      min-width: 0;
+    }
+    .ts-body[data-phone-view='map'] .ts-detail,
+    .ts-body[data-phone-view='stops'] .ts-detail {
+      display: none;
+    }
+    /* Map tab: the map takes the whole pane */
+    .ts-body[data-phone-view='map'] .rail-map {
+      flex: 1;
+      height: auto;
+    }
+    .ts-body[data-phone-view='map'] .rail-list { display: none; }
+    /* Stops tab: the list takes the whole pane */
+    .ts-body[data-phone-view='stops'] .rail-map { display: none; }
+    .ts-body[data-phone-view='stops'] .rail-list { padding-top: 4px; }
+  }
+
+  /* Tablet / wide (≥ 720px): master–detail — rail persistent, no tab bar */
+  @media (min-width: 720px) {
+    .ts-rail {
+      display: flex;
+      width: 400px;
+      flex: none;
+      border-right: 1px solid var(--border-2);
+    }
+    .ts-tabs { display: none; }
+    .ts-accordions { flex-direction: row; align-items: flex-start; }
+    .accordion { flex: 1; }
+    .stop-title { font-size: 2.625rem; }  /* 42px (phone 32px) */
+    .plate { height: 256px; }             /* phone 196px */
   }
 </style>

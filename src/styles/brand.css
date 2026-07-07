@@ -61,6 +61,7 @@
   --pin-current:  #b06a33;
   --pin-todo-bg:  #cabfa3;
   --pin-todo-fg:  #3f392c;
+  --user-dot:     #2f7dd6;
 
   /* Typefaces */
   --font-serif:   'Spectral', Georgia, serif;
@@ -109,6 +110,7 @@
   --pin-current:  #c47a3e;
   --pin-todo-bg:  #34352c;
   --pin-todo-fg:  #a39c8a;
+  --user-dot:     #4d97e8;
 
   color-scheme: dark;
 }
@@ -153,6 +155,7 @@
   --pin-current:  #a8431c;
   --pin-todo-bg:  #3a1c0e;
   --pin-todo-fg:  #955025;
+  --user-dot:     #5b9bdb;
 
   color-scheme: dark;
 }

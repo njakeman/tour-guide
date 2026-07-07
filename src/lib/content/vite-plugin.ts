@@ -21,47 +21,66 @@ let assetBase = '/'
 /**
  * Prepend the Vite base to a root-relative path (e.g. /tours/x.png →
  * /tour-guide/tours/x.png). External URLs and data URIs are left unchanged.
+ * `base` is injectable for tests; defaults to the resolved Vite base.
  */
-function withBase(href: string): string {
+export function withBase(href: string, base: string = assetBase): string {
   if (!href) return href
   if (/^(https?:)?\/\//.test(href) || href.startsWith('data:')) return href
   // Already has the correct base (idempotent guard)
-  const base = assetBase.replace(/\/$/, '')
-  if (base && href.startsWith(base + '/')) return href
-  return base + '/' + href.replace(/^\//, '')
+  const trimmed = base.replace(/\/$/, '')
+  if (trimmed && href.startsWith(trimmed + '/')) return href
+  return trimmed + '/' + href.replace(/^\//, '')
+}
+
+/** Escape a string for use in HTML text or double-quoted attribute values. */
+export function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 // ---------------------------------------------------------------------------
-// Marked instance with custom media renderer
+// Media renderer
 // Standard markdown image syntax: ![caption](path/to/file.ext)
 // Extension is used to determine the rendered HTML element.
 // ---------------------------------------------------------------------------
-const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'svg'])
+// Anything not matched below (jpg/png/webp/svg/… and unknown extensions)
+// renders as an image figure.
 const AUDIO_EXTS = new Set(['mp3', 'ogg', 'wav', 'flac', 'm4a'])
 const VIDEO_EXTS = new Set(['mp4', 'webm', 'ogv'])
 const MODEL_EXTS = new Set(['glb', 'gltf'])
 
+/**
+ * Render one media reference to HTML. Exported for unit tests;
+ * `base` overrides the resolved Vite base when provided.
+ */
+export function renderMediaHtml(href: string, text: string, base?: string): string {
+  const src = escapeHtml(withBase(href, base))
+  const caption = escapeHtml(text)
+  const ext = href.split('.').pop()?.toLowerCase() ?? ''
+  const cap = text ? `<figcaption>${caption}</figcaption>` : ''
+
+  if (AUDIO_EXTS.has(ext)) {
+    return `<figure class="media-audio"><audio controls preload="metadata"><source src="${src}" /></audio>${cap}</figure>`
+  }
+  if (VIDEO_EXTS.has(ext)) {
+    return `<figure class="media-video"><video controls preload="metadata" playsinline><source src="${src}" /></video>${cap}</figure>`
+  }
+  if (MODEL_EXTS.has(ext)) {
+    const label = escapeHtml(href.split('/').pop() ?? '3D model')
+    return `<div class="media-model" data-src="${src}" data-caption="${caption}"><span class="model-stub" aria-label="3D model">⬡</span><p class="model-label">${label}</p>${cap}</div>`
+  }
+  // Images, plus fallback for unknown extensions
+  return `<figure class="media-img"><img src="${src}" alt="${caption}" loading="lazy" />${cap}</figure>`
+}
+
 const markedInstance = new Marked({
   renderer: {
     image({ href = '', text = '' }: { href?: string; text?: string; title?: string | null }) {
-      const src = withBase(href)
-      const ext = href.split('.').pop()?.toLowerCase() ?? ''
-      const cap = text ? `<figcaption>${text}</figcaption>` : ''
-
-      if (AUDIO_EXTS.has(ext)) {
-        return `<figure class="media-audio"><audio controls preload="metadata"><source src="${src}" /></audio>${cap}</figure>`
-      }
-      if (VIDEO_EXTS.has(ext)) {
-        return `<figure class="media-video"><video controls preload="metadata" playsinline><source src="${src}" /></video>${cap}</figure>`
-      }
-      if (MODEL_EXTS.has(ext)) {
-        return `<div class="media-model" data-src="${src}" data-caption="${text}"><span class="model-stub" aria-label="3D model">⬡</span><p class="model-label">${href.split('/').pop() ?? '3D model'}</p>${cap}</div>`
-      }
-      if (IMAGE_EXTS.has(ext)) {
-        return `<figure class="media-img"><img src="${src}" alt="${text}" loading="lazy" />${cap}</figure>`
-      }
-      // Fallback: treat as image
-      return `<figure class="media-img"><img src="${src}" alt="${text}" loading="lazy" />${cap}</figure>`
+      return renderMediaHtml(href, text)
     },
   },
 })

@@ -37,6 +37,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Type check
+        run: npm run check
+
+      - name: Test
+        run: npm run test
+
       - name: Generate demo media
         run: npm run demo:seed
 

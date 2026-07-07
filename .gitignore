@@ -2,6 +2,11 @@
 node_modules/
 dist/
 
+# Local working files (handoffs, scratch copies) — not part of the app
+/tour-app/
+/HANDOFF-*.md
+/*.zip
+
 # Generated demo media (run `npm run demo:seed` to recreate)
 # Real tour media in public/tours/ should be committed — only the demo placeholders are gitignored.
 # Ignore the seeded media inside the directory, but un-ignore committed real assets.
