@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm run dev          # dev server at http://localhost:5173 (no service worker)
-npm run demo:seed    # generate placeholder media into public/tours/cissbury-ring/ (gitignored)
+npm run demo:seed    # generate placeholder media for the demo tours into public/tours/ (gitignored)
 npm run demo         # demo:seed + dev in one command
 npm run check        # svelte-check + tsc (run before committing)
 npm run test         # vitest run (single pass)
@@ -40,6 +40,36 @@ App.svelte                          ← consumed at runtime; no network calls fo
 Markdown image syntax is intercepted at build time: `![caption](file.ext)` is rendered to different HTML elements depending on extension (`.mp3` → `<audio>`, `.mp4` → `<video>`, `.glb` → `.media-model` div, images → `<figure><img>`). This happens in `vite-plugin.ts:22-44`.
 
 Stop files can live at `stops/<id>.md` or with a numbered prefix `stops/01-<id>.md`. The `id:` frontmatter field must match the entry in `tour.yaml`.
+
+Two demo routes exist: `cissbury-ring` (has a PMTiles basemap) and
+`wolstonbury-hill` (**no `map:` block** — the reference example of a route
+without a basemap; every map surface shows the SVG schematic fallback).
+
+### Body media at runtime: 3D models + image lightbox
+
+Stop bodies are injected via `{@html stop.bodyHtml}` in `TourStop.svelte`, so
+Svelte components can't live inside them. Instead one `$effect` (keyed on
+`stop.bodyHtml` — the component is **not keyed** in App.svelte, so prev/next
+swaps the body in place) runs a hydration pass over `.body-text`:
+
+- **3D models (`src/lib/media/models.ts`):** `.media-model` stubs (build-time
+  output for `.glb`/`.gltf`) are upgraded to `<model-viewer>` elements.
+  `@google/model-viewer` is **dynamically imported only when a stub is
+  present** — it (plus bundled three) is a ~1 MB async chunk that stays out of
+  the app shell but is precached by the SW, so it works offline. If the import
+  fails, the ⬡ stub stays visible and the memoised promise resets for a later
+  retry. The build-time stub markup in `vite-plugin.ts` must keep
+  `class="media-model"`/`data-src`/`data-caption` — `media.test.ts` guards it
+  and the hydration reads it.
+- **Lightbox (`src/lib/Lightbox.svelte`):** body `.media-img` images get
+  `role="button"`/`tabindex` plus delegated click/Enter/Space listeners; the
+  hero photo is wrapped in a `.plate-zoom` button. Both open a fixed
+  full-screen overlay (Escape / close button / backdrop click to close, focus
+  restored to the trigger). It renders as a direct child of `.screen` —
+  the document never scrolls in this app, so no scroll lock is needed.
+  Gotchas encoded in CSS: `.plate-overlay`/`.plate-footer` are
+  `pointer-events: none` so they don't swallow hero clicks, and the phone
+  `[data-has-map]` rule hides `.plate-zoom` along with the photo.
 
 ### Responsive stop screen (design handoff: "Tour Responsive Proof")
 
@@ -112,12 +142,22 @@ instantiates MapLibre at all — no wasted WebGL context.
   doubles as the loading state until the map's `load` event.
 - `minZoom 11 / maxZoom 17` — clamp to the tileset range to avoid blank tiles.
 - Use `onMount` (not `$effect`) for map lifecycle to avoid `effect_update_depth_exceeded`.
+- **One route per mount:** MapPanel's map lifecycle (and RouteMap's offline-cache
+  state) is `onMount`-scoped to the route it mounted with. Any call site where
+  the `route` prop can change identity MUST remount via `{#key route.id}` —
+  done in TourLibrary (overview pane) and App.svelte (stop view; keyed on route
+  only, never the stop — Prev/Next must reuse the instance). Without the key,
+  switching tours leaves a blank map pane / stale badges, because `mapReady`
+  from the old route suppresses both the canvas and the SVG fallback.
+- Each tour supplies its own `.pmtiles` via `map.basemap` in its `tour.yaml` —
+  per-route tilesets are the design; nothing is shared between tours. The
+  pmtiles SW cache stores multiple files keyed by URL.
 - **Debugging gotcha:** MapLibre renders via requestAnimationFrame. In an
   occluded/hidden Chrome window, rAF is frozen, so the `load` event never
   fires and the SVG loading state persists — that is browser throttling, not
   a bug. It resolves the moment the window becomes visible.
 
-**Overrides (`center`, `zoom`, `label`, `showUserLocation`, `markCurrentStop`, `id`):**
+**Overrides (`center`, `zoom`, `label`, `showUserLocation`, `id`):**
 all optional, all default to the original route-level behaviour, so every
 existing call site is unaffected. This lets one `MapPanel` serve three roles:
 the TourStop rail map, the RouteMap overview, and the phone stop-hero (below).
@@ -125,27 +165,40 @@ the TourStop rail map, the RouteMap overview, and the phone stop-hero (below).
 required whenever two MapPanels are mounted at once so accessible names (and
 the `id` prop, default `tour-map`) don't collide.
 
-**Live-location dot:** when `showUserLocation` (default `true`), MapPanel
+**Map markers (design handoff: "Map Markers"):** every stop with coordinates
+gets a numbered chalk-disc pin on the live MapLibre map. The DOM builders live
+in `src/lib/map/markers.ts` (plain-DOM, jsdom-testable); structural CSS in
+`app.css` (`.stop-marker`, `.walker-locator`, `.tour-popup`); all colours are
+brand tokens (`--marker-*`, `--locator-*`, `--popup-*`) themed for
+light/dark/night in `brand.css`. The pin tip is at the element's bottom-centre
+→ MapLibre `anchor: 'bottom'`. Tapping a marker opens the **stop popup** (one
+at a time; a map tap closes it; marker/popup click handlers call
+`stopPropagation()` because markers live inside the map's canvas container).
+The popup eyebrow shows the live haversine distance from the walker ("Stop 3 ·
+320m away", falls back to "Stop 3" with no fix) and tapping the popup
+navigates to the stop via `onGoToStop`.
+
+**Walker locator:** when `showUserLocation` (default `true`), MapPanel
 subscribes to the `geolocation` store (`src/lib/geo/store.ts`) and renders the
-GPS fix as a MapLibre HTML `Marker` (`.user-loc-marker`, styled in `app.css`,
-reusing the `tg-pulse` keyframe and the `--user-dot` brand token) — hidden
-until the first fix, then `marker.setLngLat()` on every update. **The map is
-never recentred on it** — the offline PMTiles cache only covers a fixed area,
-so the viewport must stay under the user's control; panning away from the dot
-is expected and does not snap back. `markCurrentStop` drops one static pin
-(`--pin-current`) at the given stop's coordinates, used only by the hero map.
+GPS fix as the surveyor's-reticle locator (88px, anchored centre) — hidden
+until the first fix, then `marker.setLngLat()` on every update. The heading
+cone rotates to `position.heading` (degrees from north; the map is north-up —
+only the cone turns) and hides when no bearing is available. **The map is
+never recentred on the fix** — the offline PMTiles cache only covers a fixed
+area, so the viewport must stay under the user's control; panning away from
+the locator is expected and does not snap back.
 
 **Phone stop-hero (`TourStop.svelte`):** on phone (<720px) the stop's hero
-plate is a live `MapPanel` centred on the current stop (`center`, `zoom={16}`,
-`markCurrentStop`) instead of the photo — useful for orientation mid-walk. On
+plate is a live `MapPanel` centred on the current stop (`center`, `zoom={16}`)
+instead of the photo — useful for orientation mid-walk. On
 tablet (≥720px) the hero shows the photo as before, since the rail map is
 already permanently visible; the hero `MapPanel` stays `display:none` there
 and so never initialises. Both blocks exist in the DOM at every width (`.plate
 stop-hero` renders `.hero-map` unconditionally when the stop has coordinates,
 alongside the existing `<img>`/SVG); the `@media` blocks at the end of
 `TourStop.svelte`'s `<style>` toggle which one is visible.
-- Stop markers + a route line drawn directly on the real MapLibre map (rather
-  than only in the SVG fallback) remain a future Phase 2 item.
+- A route line drawn directly on the real MapLibre map (rather than only in
+  the SVG fallback) remains a future item; stop markers are done (above).
 
 The `map:` field in `tour.yaml` (optional) carries `basemap`, `center` ([lng,lat]), and `zoom`.
 The content plugin rewrites `map.basemap` through `withBase()` at build time.
@@ -205,7 +258,7 @@ Auto-deploys on push to `main` via `.github/workflows/deploy.yml`:
 
 ### Media assets
 
-Real tour media goes in `public/tours/<route-id>/` and is committed to the repo. The demo tour's media (`public/tours/cissbury-ring/`) is gitignored and generated by `npm run demo:seed` (see `scripts/seed-demo.mjs` — zero-dependency Node ESM, produces PNG/MP3/MP4/GLB). The exception is `cissbury-tiles-v2.pmtiles` — this is a committed real asset un-ignored in `.gitignore`.
+Real tour media goes in `public/tours/<route-id>/` and is committed to the repo. The demo tours' media (`public/tours/cissbury-ring/` and `public/tours/wolstonbury-hill/`) is gitignored and generated by `npm run demo:seed` (see `scripts/seed-demo.mjs` — zero-dependency Node ESM with a per-route `ROUTES` spec table, produces PNG/MP3/MP4/GLB). The exception is `cissbury-tiles-v2.pmtiles` — this is a committed real asset un-ignored in `.gitignore`.
 
 ### Tests
 
@@ -214,7 +267,9 @@ Run with vitest (`svelteTesting()` in `vitest.config.ts` makes Svelte 5 componen
 - `src/lib/router.test.ts` — `parseHash`/`buildHash` round-trips and edge cases
 - `src/lib/content/content.test.ts` — integration tests that read the real `content/` directory: validates `tour.yaml` structure, stop file resolution (including numbered-prefix convention), required frontmatter fields, and `map.basemap` field format
 - `src/lib/content/media.test.ts` — `withBase`, `escapeHtml`, and the media renderer (`.mp3` → audio, `.mp4` → video, `.glb` → model stub, attribute escaping)
+- `src/lib/map/markers.test.ts` — the map-marker DOM builders: numbered stop pin (aria-label, HTML number overlay, title escaping), walker locator heading rotation/hiding, popup eyebrow distance formatting and in-place updates. The live map wiring (marker anchors, popup open/close, locator following the fix) is verified manually in the browser — jsdom has no WebGL.
+- `src/lib/media/models.test.ts` — `hydrateModels` with an injected fake loader: no import when no stub, stub → `<model-viewer>` upgrade, loader-failure fallback, idempotence, retry after failure. **Never put `.media-model` HTML in component-test fixtures** — that would trigger the real `@google/model-viewer` import under jsdom.
 - `src/lib/pwa/workbox-config.test.ts` — guards the SW rules (tour media excluded from precache, pmtiles rule is Range-aware CacheFirst)
-- `src/lib/TourStop.test.ts`, `src/lib/TourLibrary.test.ts`, `src/lib/RouteMap.test.ts` — component tests (@testing-library/svelte): proximity footer states incl. stale-fix handling, nav edges, SVG map fallback, saved-filter empty state, and the responsive one-DOM layouts. For the Landing: rail (`.tour-list`) + overview (`.tour-overview`) present together, `data-phone-view` follows the `view` prop, selected-vs-idle card `data-state`. For RouteMap-as-overview: `.start-tour[data-tour]` hook + Start/Resume CTA text and the `.tour-overview[data-tour]` root. For TourStop: the phone hero `MapPanel` and the rail `MapPanel` both mount with distinct `id`s (`tour-map-hero` / `tour-map`) and accessible names, since jsdom has no WebGL so both fall back to the SVG schematic — the live map, its markers (current-stop pin, user-location dot), and the recentring behaviour are verified manually in the browser instead.
+- `src/lib/TourStop.test.ts`, `src/lib/TourLibrary.test.ts`, `src/lib/RouteMap.test.ts` — component tests (@testing-library/svelte): proximity footer states incl. stale-fix handling, nav edges, SVG map fallback, saved-filter empty state, and the responsive one-DOM layouts. For the Landing: rail (`.tour-list`) + overview (`.tour-overview`) present together, `data-phone-view` follows the `view` prop, selected-vs-idle card `data-state`. For RouteMap-as-overview: `.start-tour[data-tour]` hook + Start/Resume CTA text and the `.tour-overview[data-tour]` root. For TourStop: the phone hero `MapPanel` and the rail `MapPanel` both mount with distinct `id`s (`tour-map-hero` / `tour-map`) and accessible names, since jsdom has no WebGL so both fall back to the SVG schematic — the live map, its markers (current-stop pin, user-location dot), and the recentring behaviour are verified manually in the browser instead. TourStop also covers the lightbox (open from body image and hero button, close via Escape/button/backdrop, image click does not close).
 
-Expected baseline: **74 tests pass, 0 errors** from `npm run check`.
+Expected baseline: **115 tests pass, 0 errors** from `npm run check`.

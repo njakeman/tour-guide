@@ -42,32 +42,154 @@ body {
   100% { opacity: 0; }
 }
 
-/* ── User-location map marker (live GPS dot, MapPanel) ──
-   Reuses tg-pulse above — same ping/ripple shape as the stop-screen
-   proximity dot, just sized for a map marker and coloured with
-   --user-dot. Global (not component-scoped) because MapLibre relocates
-   the marker element outside Svelte's DOM, so scoped styles can't reach it. */
-.user-loc-marker {
+/* ── Map markers (MapLibre HTML markers, design handoff: "Map Markers") ──
+   Global (not component-scoped) because MapLibre relocates marker elements
+   outside Svelte's DOM, so scoped styles can't reach them. All colours are
+   brand tokens (--marker-*, --locator-*, --popup-*) so the markers follow
+   light / dark / night. Built in src/lib/map/markers.ts. */
+
+/* Numbered chalk-disc stop pin. 40×49 art in a 44px-wide tap target;
+   pin tip at bottom-centre — the MapLibre marker uses anchor: 'bottom'. */
+.stop-marker {
   position: relative;
-  width: 16px;
-  height: 16px;
+  width: 44px;
+  height: 49px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  filter: drop-shadow(0 1.5px 2px rgba(36, 29, 15, 0.6));
 }
 
-.user-loc-dot,
-.user-loc-ripple {
+.stop-marker svg {
+  display: block;
+  margin: 0 auto;
+}
+
+.stop-marker .sm-body {
+  fill: var(--marker-fill);
+  stroke: var(--marker-ring);
+  stroke-width: 2.2;
+}
+
+.stop-marker .sm-inner {
+  /* faint inner ring — echoes the ramparts / map contours */
+  fill: none;
+  stroke: var(--marker-ring);
+  stroke-width: 1;
+  opacity: 0.3;
+}
+
+.stop-marker__num {
   position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: var(--user-dot);
+  left: 50%;
+  top: 18px; /* disc centre in the 40×49 viewBox */
+  transform: translate(-50%, -50%);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--marker-num);
 }
 
-.user-loc-dot {
-  border: 2px solid var(--bg);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+/* Walker locator: surveyor's reticle + heading cone + position dot.
+   Anchored centre; the cone rotates to the bearing (map is north-up) and
+   hides when no bearing is available (data-heading="none"). */
+.walker-locator {
+  width: 88px;
+  height: 88px;
+  pointer-events: none; /* never blocks marker taps or map pans */
 }
 
-.user-loc-ripple {
-  animation: tg-pulse 2s ease-out infinite;
+.walker-locator .wl-halo      { fill: var(--locator-cone); opacity: 0.10; }
+.walker-locator .wl-halo-ring { fill: none; stroke: var(--locator-cone); stroke-width: 1; opacity: 0.5; }
+.walker-locator .wl-cone      { fill: var(--locator-cone); opacity: 0.32; }
+.walker-locator[data-heading='none'] .wl-cone { display: none; }
+
+.walker-locator .wl-reticle {
+  stroke: var(--locator-stroke);
+  stroke-width: 1.6;
+  fill: none;
+}
+
+.walker-locator .wl-n {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  fill: var(--locator-stroke);
+}
+
+.walker-locator .wl-dot {
+  fill: var(--locator-dot);
+  stroke: var(--locator-stroke);
+  stroke-width: 2.4;
+}
+
+/* Stop popup: tap callout above the marker, tail pointing down at the disc.
+   The whole card is a button — tapping it opens the stop. */
+.tour-popup {
+  position: relative;
+  display: block;
+  padding: 0 0 7px; /* room for the tail */
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  filter: drop-shadow(0 7px 16px rgba(40, 34, 22, 0.45));
+}
+
+.tour-popup__card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--popup-bg);
+  border: 1px solid var(--popup-border);
+  border-radius: 13px;
+  padding: 10px 14px 11px;
+}
+
+.tour-popup__text {
+  display: block;
+}
+
+.tour-popup__eyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--popup-eyebrow);
+}
+
+.tour-popup__name {
+  display: block;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 1.15;
+  color: var(--popup-name);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.tour-popup__chevron {
+  font-size: 20px;
+  color: var(--popup-chevron);
+  line-height: 1;
+  flex: none;
+}
+
+.tour-popup__tail {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  margin-left: -7px;
+  width: 14px;
+  height: 14px;
+  background: var(--popup-bg);
+  border-right: 1px solid var(--popup-border);
+  border-bottom: 1px solid var(--popup-border);
+  transform: rotate(45deg);
 }
 
 /* ── Shared label utilities ── */

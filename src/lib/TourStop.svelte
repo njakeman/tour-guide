@@ -16,9 +16,11 @@
   import { onMount } from 'svelte'
   import type { TourRoute, TourStop } from './types'
   import { isNearby } from './geo/store'
+  import { hydrateModels } from './media/models'
   import MapPanel from './MapPanel.svelte'
   import StopList from './StopList.svelte'
   import ThemeToggle from './ThemeToggle.svelte'
+  import Lightbox from './Lightbox.svelte'
 
   interface Props {
     stop: TourStop
@@ -108,9 +110,63 @@
   const heroSrc = $derived(stop.hero?.src ?? stop.media?.find((m) => m.type === 'image')?.src)
   const heroCaption = $derived(stop.hero?.caption ?? stop.media?.find((m) => m.type === 'image')?.caption)
 
-  // Hide the <img> on load error and reveal the contour-SVG fallback
+  // Hide the <img> on load error and reveal the contour-SVG fallback.
+  // Reset on stop change — the component is not keyed in App.svelte, so one
+  // broken hero must not suppress every later stop's hero. (Writes state it
+  // does not read, so no effect_update_depth_exceeded risk.)
   let heroFailed = $state(false)
   function onHeroError() { heroFailed = true }
+  $effect(() => {
+    void stop.id
+    heroFailed = false
+  })
+
+  // ── Body media: model hydration + image lightbox ─────────────────────────
+  let bodyEl = $state<HTMLElement | null>(null)
+  let lightbox = $state<{ src: string; alt: string; caption?: string } | null>(null)
+
+  function openHeroLightbox() {
+    if (!heroSrc) return
+    lightbox = { src: heroSrc, alt: heroCaption ?? stop.title, caption: heroCaption }
+  }
+
+  // Runs after each {@html} render (the component is not keyed, so prev/next
+  // swaps bodyHtml in place): upgrade .media-model stubs to <model-viewer>
+  // and make body images open the lightbox. Reads bodyHtml/bodyEl, writes
+  // only the DOM — `lightbox` is set inside event handlers, not the effect.
+  $effect(() => {
+    void stop.bodyHtml
+    const el = bodyEl
+    if (!el) return
+
+    void hydrateModels(el)
+
+    for (const img of el.querySelectorAll<HTMLImageElement>('.media-img img')) {
+      img.setAttribute('role', 'button')
+      img.tabIndex = 0
+    }
+
+    const openFromEvent = (event: Event) => {
+      const img = (event.target as Element).closest<HTMLImageElement>('.media-img img')
+      if (!img) return
+      const caption =
+        img.closest('figure')?.querySelector('figcaption')?.textContent ?? undefined
+      lightbox = { src: img.src, alt: img.alt, caption }
+    }
+    const onBodyClick = (event: MouseEvent) => openFromEvent(event)
+    const onBodyKeydown = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      if (!(event.target as Element).closest('.media-img img')) return
+      event.preventDefault()
+      openFromEvent(event)
+    }
+    el.addEventListener('click', onBodyClick)
+    el.addEventListener('keydown', onBodyKeydown)
+    return () => {
+      el.removeEventListener('click', onBodyClick)
+      el.removeEventListener('keydown', onBodyKeydown)
+    }
+  })
 </script>
 
 <div class="screen">
@@ -177,14 +233,20 @@
                 onGoToStop={goStopFromRail}
                 center={[stop.lng, stop.lat]}
                 zoom={16}
-                markCurrentStop
                 label={`Map showing the location of ${stop.title}`}
                 id="tour-map-hero"
               />
             </div>
           {/if}
           {#if heroSrc && !heroFailed}
-            <img src={heroSrc} alt={heroCaption ?? stop.title} class="plate-img" loading="eager" onerror={onHeroError} />
+            <button
+              class="plate-zoom"
+              type="button"
+              aria-label={`View image: ${heroCaption ?? stop.title}`}
+              onclick={openHeroLightbox}
+            >
+              <img src={heroSrc} alt={heroCaption ?? stop.title} class="plate-img" loading="eager" onerror={onHeroError} />
+            </button>
           {:else}
             <!-- Procedural contour art fallback -->
             <svg class="plate-svg" viewBox="0 0 366 212" preserveAspectRatio="none" aria-hidden="true">
@@ -225,7 +287,7 @@
 
         <!-- Body text (pre-rendered HTML from build-time markdown) -->
         {#if stop.bodyHtml}
-          <div class="body-text">
+          <div class="body-text" bind:this={bodyEl}>
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html stop.bodyHtml}
           </div>
@@ -328,6 +390,17 @@
       </button>
     {/each}
   </nav>
+
+  <!-- Full-screen image lightbox — outside .scroll-body so touch scrolling
+       cannot chain into the page behind it -->
+  {#if lightbox}
+    <Lightbox
+      src={lightbox.src}
+      alt={lightbox.alt}
+      caption={lightbox.caption}
+      onClose={() => (lightbox = null)}
+    />
+  {/if}
 </div>
 
 <style>
@@ -491,6 +564,17 @@
     flex: none;
   }
 
+  /* Hero zoom affordance: the button fills the plate, the image fills it */
+  .plate-zoom {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: zoom-in;
+    display: block;
+  }
+
   .plate-img {
     position: absolute;
     inset: 0;
@@ -514,11 +598,14 @@
     height: 100%;
   }
 
+  /* Decorative layers above the hero image must not swallow clicks on the
+     zoom button underneath them */
   .plate-overlay {
     position: absolute;
     left: 0; right: 0; bottom: 0;
     height: 84px;
     background: linear-gradient(180deg, transparent, rgba(0,0,0,0.55));
+    pointer-events: none;
   }
 
   .plate-footer {
@@ -528,6 +615,7 @@
     align-items: flex-end;
     justify-content: space-between;
     gap: 10px;
+    pointer-events: none;
   }
 
   .plate-caption {
@@ -634,6 +722,11 @@
     display: block;
   }
 
+  /* Body images open the lightbox (affordance set by the hydration effect) */
+  .body-text :global(.media-img img) {
+    cursor: zoom-in;
+  }
+
   .body-text :global(.media-audio audio) {
     width: 100%;
     padding: 0.5rem;
@@ -651,6 +744,15 @@
     font-family: var(--font-mono);
     font-size: 0.75rem;
     margin: 0.5rem 0 0;
+  }
+
+  /* Hydrated 3D viewer (see media/models.ts) — without an explicit height
+     model-viewer renders at its 300×150 canvas default */
+  .body-text :global(model-viewer) {
+    display: block;
+    width: 100%;
+    height: 300px;
+    background: var(--surface-2);
   }
 
   .body-text :global(figcaption) {
@@ -887,6 +989,7 @@
        Scoped to [data-has-map] so a coordinate-less stop (no .hero-map in the
        DOM) keeps its photo / contour-art plate instead of rendering blank. */
     .stop-hero[data-has-map] .hero-map { display: block; }
+    .stop-hero[data-has-map] .plate-zoom,
     .stop-hero[data-has-map] .plate-img,
     .stop-hero[data-has-map] .plate-svg,
     .stop-hero[data-has-map] .plate-overlay,

@@ -12,6 +12,7 @@ dist/
 # Ignore the seeded media inside the directory, but un-ignore committed real assets.
 /public/tours/cissbury-ring/*
 !/public/tours/cissbury-ring/cissbury-tiles-v2.pmtiles
+/public/tours/wolstonbury-hill/*
 .env
 .env.local
 .env.*.local

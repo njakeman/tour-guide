@@ -16,11 +16,15 @@
   `center`/`zoom`/`label` let a caller focus the map on something other than
   the route default (e.g. the phone stop-hero centres on the current stop) —
   every existing call site is unaffected since these are optional.
-  `showUserLocation` renders the live GPS fix as a pulsing dot (a MapLibre
-  HTML Marker driven by the `geolocation` store); the map is never recentred
-  on it since the offline PMTiles cache only covers a fixed area and panning
-  must stay under the user's control. `markCurrentStop` drops a static pin
-  on the active stop.
+  `showUserLocation` renders the live GPS fix as the walker locator (a
+  MapLibre HTML Marker driven by the `geolocation` store; reticle + heading
+  cone, see src/lib/map/markers.ts); the map is never recentred on it since
+  the offline PMTiles cache only covers a fixed area and panning must stay
+  under the user's control.
+
+  Every stop with coordinates gets a numbered chalk-disc marker (design
+  handoff: "Map Markers"). Tapping a marker opens the stop popup (one at a
+  time; map tap closes it); tapping the popup navigates to that stop.
 -->
 <script lang="ts" module>
   // maplibre-gl's global protocol registry is shared across every mounted
@@ -62,8 +66,15 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import type { Map as MaplibreMap, Marker as MaplibreMarker } from 'maplibre-gl'
-  import type { TourRoute } from './types'
-  import { geolocation } from './geo/store'
+  import type { TourRoute, TourStop } from './types'
+  import { geolocation, haversineDistance, type GeoPosition } from './geo/store'
+  import {
+    createStopMarkerElement,
+    createStopPopupElement,
+    createWalkerLocatorElement,
+    setWalkerHeading,
+    updateStopPopupDistance,
+  } from './map/markers'
 
   interface Props {
     route: TourRoute
@@ -78,13 +89,10 @@
      * whenever more than one MapPanel is mounted at once (e.g. the TourStop
      * rail map + the phone hero map) so accessible names stay unique. */
     label?: string
-    /** Show the live GPS position as a pulsing dot. Never recentres the map
-     * on it — the offline tile cache only covers a fixed area, so panning
+    /** Show the live GPS position as the walker locator. Never recentres the
+     * map on it — the offline tile cache only covers a fixed area, so panning
      * stays under the user's control. */
     showUserLocation?: boolean
-    /** Drop a single static pin on `currentStopId` — used by the stop-hero
-     * focused map to show "you are here" relative to the stop. */
-    markCurrentStop?: boolean
     /** DOM id for the root element. Defaults to the design handoff's stable
      * `#tour-map` mount hook — override when more than one MapPanel is
      * mounted at once (e.g. the TourStop rail map + the phone hero map)
@@ -100,7 +108,6 @@
     zoom: zoomOverride,
     label,
     showUserLocation = true,
-    markCurrentStop = false,
     id = 'tour-map',
   }: Props = $props()
 
@@ -118,7 +125,6 @@
   // Plain lets (not $state): the effect is driven by prop/mapReady changes and
   // just reads whichever instance currently exists.
   let mapInstance: MaplibreMap | null = null
-  let currentStopMarker: MaplibreMarker | null = null
   let maplibreLib: MaplibreGlLike | null = null
   // Last center/zoom actually pushed to the map, so incidental parent
   // re-renders (which recreate the center array literal) don't yank the
@@ -126,42 +132,13 @@
   let appliedCenterKey = ''
   let appliedZoom: number | undefined
 
-  /** Create, move, or remove the static "you are here" pin (phone hero map). */
-  function placeCurrentStopMarker() {
-    if (!markCurrentStop || !mapInstance || !maplibreLib) return
-    const stop = route.stops.find((s) => s.id === currentStopId)
-    if (stop?.lat == null || stop?.lng == null) {
-      currentStopMarker?.remove()
-      currentStopMarker = null
-      return
-    }
-    if (currentStopMarker) {
-      currentStopMarker.setLngLat([stop.lng, stop.lat])
-      return
-    }
-    const el = document.createElement('div')
-    el.setAttribute('aria-hidden', 'true')
-    el.style.width = '18px'
-    el.style.height = '18px'
-    el.style.borderRadius = '50%'
-    el.style.background = 'var(--pin-current)'
-    el.style.border = '2px solid var(--bg)'
-    el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.4)'
-    currentStopMarker = new maplibreLib.Marker({ element: el })
-      .setLngLat([stop.lng, stop.lat])
-      .addTo(mapInstance)
-  }
-
   // Keep a live map in sync when the focused stop changes without a remount —
-  // the phone stop-hero map's center/zoom/currentStopId are swapped by Prev/Next
-  // (App.svelte keeps the same MapPanel instance), so the constructor values read
-  // once in onMount would otherwise leave it stuck on the first stop.
+  // the phone stop-hero map's center/zoom are swapped by Prev/Next (App.svelte
+  // keeps the same MapPanel instance within a route), so the constructor
+  // values read once in onMount would otherwise leave it stuck on the first stop.
   $effect(() => {
     const center = centerOverride
     const zoom = zoomOverride
-    // Track currentStopId so the marker follows Prev/Next (placeCurrentStopMarker
-    // reads it, but only after the guard below — read it here to register the dep).
-    void currentStopId
     if (!mapReady || !mapInstance) return
     const key = center ? `${center[0]},${center[1]}` : ''
     if (center && key !== appliedCenterKey) {
@@ -172,7 +149,6 @@
       mapInstance.setZoom(zoom)
       appliedZoom = zoom
     }
-    placeCurrentStopMarker()
   })
 
   onMount(() => {
@@ -202,6 +178,16 @@
     let removeProtocol: (() => void) | null = null
     let userMarker: MaplibreMarker | null = null
     let unsubscribeGeo: (() => void) | null = null
+    let stopMarkers: MaplibreMarker[] = []
+    let popupMarker: MaplibreMarker | null = null
+    let popupFor: { stop: TourStop; label: string; el: HTMLElement } | null = null
+    let lastFix: GeoPosition | null = null
+
+    function closePopup() {
+      popupMarker?.remove()
+      popupMarker = null
+      popupFor = null
+    }
 
     function fail() {
       mapFailed = true
@@ -209,8 +195,9 @@
       unsubscribeGeo = null
       userMarker?.remove()
       userMarker = null
-      currentStopMarker?.remove()
-      currentStopMarker = null
+      closePopup()
+      for (const m of stopMarkers) m.remove()
+      stopMarkers = []
       mapInstance?.remove()
       mapInstance = null
       maplibreLib = null
@@ -266,30 +253,91 @@
         })
 
         mapInstance.on('load', () => {
-          if (disposed) return
+          if (disposed || !mapInstance) return
           mapReady = true
 
-          // Static "you are here" pin for a focused stop map (phone hero).
-          // The reactive $effect above keeps it in sync afterwards.
-          placeCurrentStopMarker()
+          // Numbered chalk-disc stop markers (design handoff: "Map Markers").
+          // Pin tip at the element's bottom-centre → anchor 'bottom'. Tap
+          // opens the popup; tapping the popup navigates to the stop.
+          route.stops.forEach((stop, i) => {
+            if (stop.lat == null || stop.lng == null || !mapInstance) return
+            const label = String(i + 1)
+            const el = createStopMarkerElement(label, stop.title)
+            el.addEventListener('click', (e) => {
+              // Markers live inside the map's canvas container — stop the
+              // event before the map's own click handler closes the popup.
+              e.stopPropagation()
+              openPopup(stop, label)
+            })
+            stopMarkers.push(
+              new maplibregl.Marker({ element: el, anchor: 'bottom' })
+                .setLngLat([stop.lng, stop.lat])
+                .addTo(mapInstance)
+            )
+          })
 
-          // Live GPS position — subtle pulsing dot. Never recentres the map:
-          // the offline tile cache only covers a fixed area, so the viewport
-          // stays under the user's control and just tracks where they pan.
+          function openPopup(stop: TourStop, label: string) {
+            if (!mapInstance || stop.lat == null || stop.lng == null) return
+            closePopup() // one popup at a time
+            const el = createStopPopupElement({
+              label,
+              title: stop.title,
+              distanceMetres: lastFix
+                ? haversineDistance(lastFix.lat, lastFix.lng, stop.lat, stop.lng)
+                : null,
+            })
+            el.addEventListener('click', (e) => {
+              e.stopPropagation()
+              closePopup()
+              onGoToStop(stop.id)
+            })
+            // Bottom-anchored just above the 49px pin, tail pointing at the disc
+            popupMarker = new maplibregl.Marker({
+              element: el,
+              anchor: 'bottom',
+              offset: [0, -53],
+            })
+              .setLngLat([stop.lng, stop.lat])
+              .addTo(mapInstance)
+            popupFor = { stop, label, el }
+          }
+
+          // Tapping the map (not a marker) dismisses the popup
+          mapInstance.on('click', closePopup)
+
+          // Live GPS position — the walker locator (reticle + heading cone).
+          // Never recentres the map: the offline tile cache only covers a
+          // fixed area, so the viewport stays under the user's control.
           if (showUserLocation && mapInstance) {
-            const el = document.createElement('div')
-            el.className = 'user-loc-marker'
-            el.style.display = 'none'
-            el.innerHTML = '<div class="user-loc-ripple"></div><div class="user-loc-dot"></div>'
-            userMarker = new maplibregl.Marker({ element: el }).setLngLat([0, 0]).addTo(mapInstance)
+            const el = createWalkerLocatorElement()
+            el.style.display = 'none' // hidden until the first fix
+            userMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
+              .setLngLat([0, 0])
+              .addTo(mapInstance)
             const marker = userMarker
             unsubscribeGeo = geolocation.subscribe((state) => {
+              lastFix = state.position
               if (!state.position) {
                 el.style.display = 'none'
                 return
               }
               marker.setLngLat([state.position.lng, state.position.lat])
               el.style.display = ''
+              // Map is north-up; only the cone rotates, hidden with no bearing
+              setWalkerHeading(el, state.position.heading ?? null)
+              // Keep an open popup's "· 320m away" eyebrow honest as we move
+              if (popupFor && popupFor.stop.lat != null && popupFor.stop.lng != null) {
+                updateStopPopupDistance(
+                  popupFor.el,
+                  popupFor.label,
+                  haversineDistance(
+                    state.position.lat,
+                    state.position.lng,
+                    popupFor.stop.lat,
+                    popupFor.stop.lng
+                  )
+                )
+              }
             })
           }
         })
@@ -334,8 +382,9 @@
       observer?.disconnect()
       unsubscribeGeo?.()
       userMarker?.remove()
-      currentStopMarker?.remove()
-      currentStopMarker = null
+      closePopup()
+      for (const m of stopMarkers) m.remove()
+      stopMarkers = []
       mapInstance?.remove()
       mapInstance = null
       maplibreLib = null

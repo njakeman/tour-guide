@@ -133,19 +133,26 @@
     />
 
   {:else if view === 'stop' && currentStop && currentRoute}
-    <TourStopView
-      stop={currentStop}
-      stopIndex={currentStopIndex}
-      route={currentRoute}
-      visitedStopIds={visited}
-      distanceMetres={currentDist}
-      accuracy={geoAccuracy}
-      fixTimestamp={geoTimestamp}
-      onPrev={() => goStop(currentStopIndex - 1)}
-      onNext={() => goStop(currentStopIndex + 1)}
-      onBack={goRoute}
-      onGoToStop={goStopById}
-    />
+    <!-- Keyed on the ROUTE only (not the stop): Prev/Next must reuse the
+         instance (rail MapPanel stays live, body hydration $effect re-runs),
+         but a cross-route hash navigation (back/forward, edited URL) must
+         remount — the rail MapPanel's map lifecycle is onMount-scoped to one
+         route's basemap, same as the Landing overview (see TourLibrary). -->
+    {#key currentRoute.id}
+      <TourStopView
+        stop={currentStop}
+        stopIndex={currentStopIndex}
+        route={currentRoute}
+        visitedStopIds={visited}
+        distanceMetres={currentDist}
+        accuracy={geoAccuracy}
+        fixTimestamp={geoTimestamp}
+        onPrev={() => goStop(currentStopIndex - 1)}
+        onNext={() => goStop(currentStopIndex + 1)}
+        onBack={goRoute}
+        onGoToStop={goStopById}
+      />
+    {/key}
 
   {:else}
     <TourLibrary {routes} onSelect={selectRoute} />

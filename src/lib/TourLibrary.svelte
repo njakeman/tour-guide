@@ -248,16 +248,22 @@
       </div>
     </div>
 
-    <!-- RIGHT — selected tour overview (detail) -->
+    <!-- RIGHT — selected tour overview (detail). Keyed on the route id:
+         RouteMap's offline-cache state and MapPanel's map lifecycle are both
+         onMount-scoped, so switching tours must remount the pane — otherwise
+         the old tour's MapLibre instance / cache badges linger (blank map
+         pane, stale "offline ready" chip). -->
     <div class="tl-overview">
       {#if currentRoute}
-        <RouteMap
-          route={currentRoute}
-          {currentStopId}
-          {visitedStopIds}
-          {onGoToStop}
-          {onBack}
-        />
+        {#key currentRoute.id}
+          <RouteMap
+            route={currentRoute}
+            {currentStopId}
+            {visitedStopIds}
+            {onGoToStop}
+            {onBack}
+          />
+        {/key}
       {/if}
     </div>
   </div>

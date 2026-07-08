@@ -63,6 +63,19 @@
   --pin-todo-fg:  #3f392c;
   --user-dot:     #2f7dd6;
 
+  /* Map markers (design handoff: "Map Markers") */
+  --marker-fill:    #f3ece0;  /* chalk disc */
+  --marker-ring:    #b06a33;  /* ochre ring */
+  --marker-num:     #5b5340;
+  --locator-stroke: #fbf6ea;  /* reticle + N */
+  --locator-cone:   #f4ecdd;  /* heading cone + accuracy halo */
+  --locator-dot:    #b06a33;
+  --popup-bg:       #f5f1e7;
+  --popup-border:   #e0d7c1;
+  --popup-eyebrow:  #8a4f22;
+  --popup-chevron:  #b06a33;
+  --popup-name:     #26241f;
+
   /* Typefaces */
   --font-serif:   'Spectral', Georgia, serif;
   --font-sans:    'Hanken Grotesk', system-ui, sans-serif;
@@ -112,6 +125,19 @@
   --pin-todo-fg:  #a39c8a;
   --user-dot:     #4d97e8;
 
+  /* Map markers */
+  --marker-fill:    #1d1e16;
+  --marker-ring:    #d69156;
+  --marker-num:     #ece6d6;
+  --locator-stroke: #ece6d6;
+  --locator-cone:   #ece6d6;
+  --locator-dot:    #d69156;
+  --popup-bg:       #23241c;
+  --popup-border:   #34352c;
+  --popup-eyebrow:  #d69156;
+  --popup-chevron:  #d69156;
+  --popup-name:     #ece6d6;
+
   color-scheme: dark;
 }
 
@@ -159,6 +185,19 @@
      dark-adapted vision (see block header). This is the "you are here" dot,
      so it's the brightest warm value in the set. */
   --user-dot:     #e5763c;
+
+  /* Map markers — red-light treatment: no bright chalk, red-amber only */
+  --marker-fill:    #2a1207;
+  --marker-ring:    #cf5f2c;
+  --marker-num:     #cf5f2c;
+  --locator-stroke: #cf5f2c;
+  --locator-cone:   #cf5f2c;
+  --locator-dot:    #e0712f;
+  --popup-bg:       #160b06;
+  --popup-border:   #3a1c0e;
+  --popup-eyebrow:  #cf5f2c;
+  --popup-chevron:  #cf5f2c;
+  --popup-name:     #e0712f;
 
   color-scheme: dark;
 }

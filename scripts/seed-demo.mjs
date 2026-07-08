@@ -1,43 +1,36 @@
 /**
  * fieldWorks — Demo media seed script
  *
- * Generates placeholder media files into public/tours/cissbury-ring/
- * so the demo tour renders fully in the browser without committing
- * any binaries to the repository.
+ * Generates placeholder media files into public/tours/<route>/ for each
+ * demo route so the demo tours render fully in the browser without
+ * committing any binaries to the repository.
  *
  * Usage:
  *   npm run demo:seed          # generate once
  *   npm run demo               # generate + start dev server
  *
- * Files written (all gitignored):
- *   entrance.png         — hero image for stop 1
- *   interior-view.png    — hero image for stop 2
- *   rampart.png          — inline image demo
- *   narration.mp3        — inline audio demo
- *   flythrough.mp4       — inline video demo
- *   fort.glb             — inline 3D model demo (valid glTF cube)
+ * Routes seeded (all output gitignored) — see the ROUTES table at the end:
+ *   cissbury-ring     — heroes, inline image, audio, video, 3D model
+ *   wolstonbury-hill  — heroes, inline image, audio, 3D model
  *
  * Zero npm dependencies: uses only Node built-ins (fs, zlib, path).
  * Idempotent: skips files that already exist.
  */
 
 import { mkdirSync, writeFileSync, existsSync } from 'fs'
-import { createDeflateRaw } from 'zlib'
+import { createDeflate } from 'zlib'
 import { join } from 'path'
-
-const OUT_DIR = join('public', 'tours', 'cissbury-ring')
-mkdirSync(OUT_DIR, { recursive: true })
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-function skip(name) {
-  const p = join(OUT_DIR, name)
+function skip(dir, name) {
+  const p = join(dir, name)
   if (existsSync(p)) { console.log(`  skip  ${name}`) ; return true }
   return false
 }
 
-function write(name, buf) {
-  writeFileSync(join(OUT_DIR, name), buf)
+function write(dir, name, buf) {
+  writeFileSync(join(dir, name), buf)
   console.log(`  wrote ${name}  (${buf.length} bytes)`)
 }
 
@@ -227,9 +220,12 @@ async function makePNG(W, H, options = {}) {
     }
   }
 
+  // PNG IDAT must be zlib-wrapped deflate (RFC 1950), NOT raw deflate —
+  // raw-deflate output has valid CRCs and a plausible size, but browsers
+  // decode it to a fully transparent bitmap. (This bit us: see createDeflate.)
   const compressed = await new Promise((res, rej) => {
     const chunks = []
-    const d = createDeflateRaw({ level: 6 })
+    const d = createDeflate({ level: 6 })
     d.on('data', c => chunks.push(c))
     d.on('end', () => res(Buffer.concat(chunks)))
     d.on('error', rej)
@@ -253,14 +249,16 @@ function makeGLB() {
     -0.5,-0.5,-0.5,  0.5,-0.5,-0.5,  0.5, 0.5,-0.5, -0.5, 0.5,-0.5,
     -0.5,-0.5, 0.5,  0.5,-0.5, 0.5,  0.5, 0.5, 0.5, -0.5, 0.5, 0.5,
   ])
-  // 12 triangles (2 per face × 6 faces)
+  // 12 triangles (2 per face × 6 faces). glTF front faces are COUNTER-
+  // clockwise viewed from outside — wind them CCW so outward faces survive
+  // backface culling (CW winding renders the cube inside-out).
   const indices = new Uint16Array([
-    0,1,2, 0,2,3,  // -Z
-    4,6,5, 4,7,6,  // +Z
-    0,4,5, 0,5,1,  // -Y
-    2,6,7, 2,7,3,  // +Y
-    0,3,7, 0,7,4,  // -X
-    1,5,6, 1,6,2,  // +X
+    0,2,1, 0,3,2,  // -Z
+    4,5,6, 4,6,7,  // +Z
+    0,5,4, 0,1,5,  // -Y
+    2,7,6, 2,3,7,  // +Y
+    0,7,3, 0,4,7,  // -X
+    1,6,5, 1,2,6,  // +X
   ])
 
   const posBuf  = Buffer.from(positions.buffer)
@@ -367,41 +365,38 @@ AAEAAAAPc3RzYwAAAAwAAAABAAAAASAAAAEAAAAcc3Rzeg==
 
 console.log('\nfieldWorks demo seed\n')
 
-// Hero images
+// Chalk-and-flint palette for Cissbury Ring
 const heroOpts = { bg: '#e8dcc8', stroke: '#9a8c5d', band: '#cdb585', textCol: '#26241f' }
+// Greener downland palette for Wolstonbury Hill so the two demos read apart
+const downlandOpts = { bg: '#dde4c8', stroke: '#7d8f5a', band: '#b8c98e', textCol: '#232619' }
 
-if (!skip('entrance.png')) {
-  write('entrance.png', await makePNG(1200, 800, {
-    ...heroOpts, label: 'THE ENTRANCE CAUSEWAY', sublabel: 'TQ 139 080 · 156m AOD',
-  }))
+const ROUTES = [
+  { dir: 'cissbury-ring', files: [
+    { name: 'entrance.png',      make: () => makePNG(1200, 800, { ...heroOpts, label: 'THE ENTRANCE CAUSEWAY', sublabel: 'TQ 139 080 · 156m AOD' }) },
+    { name: 'interior-view.png', make: () => makePNG(1200, 800, { ...heroOpts, label: 'THE INTERIOR SPACE', sublabel: 'TQ 140 082 · 184m AOD' }) },
+    { name: 'rampart.png',       make: () => makePNG(800, 500, { ...heroOpts, label: 'RAMPART DETAIL', sublabel: 'inline image demo' }) },
+    { name: 'narration.mp3',     make: () => Buffer.from(SILENT_MP3_B64, 'base64') },
+    { name: 'flythrough.mp4',    make: () => Buffer.from(SILENT_MP4_B64, 'base64') },
+    { name: 'fort.glb',          make: () => makeGLB() },
+  ]},
+  { dir: 'wolstonbury-hill', files: [
+    { name: 'chalk-path.png',        make: () => makePNG(1200, 800, { ...downlandOpts, label: 'THE CHALK BOSTAL', sublabel: 'TQ 282 135' }) },
+    { name: 'ring-bank.png',         make: () => makePNG(1200, 800, { ...downlandOpts, label: 'THE RING BANK', sublabel: 'TQ 283 137' }) },
+    { name: 'summit-bowl.png',       make: () => makePNG(1200, 800, { ...downlandOpts, label: 'SUMMIT AND DEW POND', sublabel: 'TQ 284 138 · 206m AOD' }) },
+    { name: 'orchid-bank.png',       make: () => makePNG(800, 500, { ...downlandOpts, label: 'ORCHID BANK', sublabel: 'inline image demo' }) },
+    { name: 'wolstonbury-intro.mp3', make: () => Buffer.from(SILENT_MP3_B64, 'base64') },
+    { name: 'enclosure.glb',         make: () => makeGLB() },
+  ]},
+]
+
+for (const route of ROUTES) {
+  const outDir = join('public', 'tours', route.dir)
+  mkdirSync(outDir, { recursive: true })
+  console.log(`${route.dir}/`)
+  for (const f of route.files) {
+    if (!skip(outDir, f.name)) write(outDir, f.name, await f.make())
+  }
+  console.log('')
 }
 
-if (!skip('interior-view.png')) {
-  write('interior-view.png', await makePNG(1200, 800, {
-    ...heroOpts, label: 'THE INTERIOR SPACE', sublabel: 'TQ 140 082 · 184m AOD',
-  }))
-}
-
-if (!skip('rampart.png')) {
-  write('rampart.png', await makePNG(800, 500, {
-    ...heroOpts, label: 'RAMPART DETAIL', sublabel: 'inline image demo',
-  }))
-}
-
-// Audio
-if (!skip('narration.mp3')) {
-  write('narration.mp3', Buffer.from(SILENT_MP3_B64, 'base64'))
-}
-
-// Video
-if (!skip('flythrough.mp4')) {
-  write('flythrough.mp4', Buffer.from(SILENT_MP4_B64, 'base64'))
-}
-
-// 3D model
-if (!skip('fort.glb')) {
-  write('fort.glb', makeGLB())
-}
-
-console.log(`\nDone — files in ${OUT_DIR}\n`)
-console.log('Run "npm run dev" or "npm run build" to see the demo tour.\n')
+console.log('Done — run "npm run dev" or "npm run build" to see the demo tours.\n')

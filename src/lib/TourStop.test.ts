@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/svelte'
+import { tick } from 'svelte'
 import TourStopView from './TourStop.svelte'
 import type { TourRoute, TourStop } from './types'
 
@@ -172,6 +173,91 @@ describe('TourStop — responsive one-DOM layout', () => {
     expect(props.onGoToStop).toHaveBeenCalledWith('stop-c')
     const body = container.querySelector('.ts-body')!
     expect(body.getAttribute('data-phone-view')).toBe('stop')
+  })
+})
+
+describe('TourStop — image lightbox', () => {
+  // NOTE: no .media-model stubs in these fixtures — that would trigger the
+  // real @google/model-viewer import under jsdom. Model hydration is covered
+  // by media/models.test.ts with an injected loader.
+  const IMG_BODY =
+    '<p>Intro.</p>' +
+    '<figure class="media-img">' +
+    '<img src="/tours/x/rampart.png" alt="Rampart" loading="lazy" />' +
+    '<figcaption>Rampart detail</figcaption>' +
+    '</figure>'
+
+  function lightboxProps() {
+    const props = baseProps()
+    const stop = makeStop('stop-a', 'First Stop', { bodyHtml: IMG_BODY })
+    props.route.stops[0] = stop
+    props.stop = stop
+    return props
+  }
+
+  it('makes body images focusable buttons and shows no dialog initially', async () => {
+    render(TourStopView, { props: lightboxProps() })
+    await tick()
+    const img = screen.getByAltText('Rampart')
+    expect(img.getAttribute('role')).toBe('button')
+    expect(img.getAttribute('tabindex')).toBe('0')
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('opens the lightbox with image and caption when a body image is clicked', async () => {
+    render(TourStopView, { props: lightboxProps() })
+    await tick()
+    await fireEvent.click(screen.getByAltText('Rampart'))
+
+    const dialog = screen.getByRole('dialog')
+    const enlarged = dialog.querySelector<HTMLImageElement>('.lightbox-figure img')!
+    expect(enlarged.src).toContain('/tours/x/rampart.png')
+    expect(dialog.textContent).toContain('Rampart detail')
+  })
+
+  it('closes on Escape', async () => {
+    render(TourStopView, { props: lightboxProps() })
+    await tick()
+    await fireEvent.click(screen.getByAltText('Rampart'))
+    expect(screen.getByRole('dialog')).toBeTruthy()
+
+    await fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('closes via the close button and the backdrop, but not the image', async () => {
+    render(TourStopView, { props: lightboxProps() })
+    await tick()
+
+    // Close button
+    await fireEvent.click(screen.getByAltText('Rampart'))
+    await fireEvent.click(screen.getByLabelText('Close image'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    // Clicking the enlarged image keeps it open; the backdrop closes it
+    await fireEvent.click(screen.getByAltText('Rampart'))
+    const dialog = screen.getByRole('dialog')
+    await fireEvent.click(dialog.querySelector('.lightbox-figure img')!)
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    await fireEvent.click(dialog)
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('opens the lightbox from the hero image button', async () => {
+    const props = lightboxProps()
+    const stop = makeStop('stop-a', 'First Stop', {
+      bodyHtml: IMG_BODY,
+      hero: { src: '/tours/x/hero.png', caption: 'West entrance' },
+    })
+    props.route.stops[0] = stop
+    props.stop = stop
+    render(TourStopView, { props })
+
+    await fireEvent.click(screen.getByLabelText('View image: West entrance'))
+    const dialog = screen.getByRole('dialog')
+    const enlarged = dialog.querySelector<HTMLImageElement>('.lightbox-figure img')!
+    expect(enlarged.src).toContain('/tours/x/hero.png')
+    expect(dialog.textContent).toContain('West entrance')
   })
 })
 

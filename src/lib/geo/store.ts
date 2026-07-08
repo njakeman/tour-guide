@@ -5,6 +5,9 @@ export type GeoPosition = {
   lng: number
   accuracy: number
   timestamp: number
+  /** Device bearing in degrees clockwise from north; null/absent when the
+   * platform can't provide one (stationary, no compass, desktop). */
+  heading?: number | null
 }
 
 export type GeoError = {
@@ -88,6 +91,10 @@ function createGeolocationStore() {
               lng: pos.coords.longitude,
               accuracy: pos.coords.accuracy,
               timestamp: pos.timestamp,
+              // Some platforms report NaN while stationary — normalise to null
+              heading: Number.isFinite(pos.coords.heading as number)
+                ? pos.coords.heading
+                : null,
             },
             loading: false,
             error: null,

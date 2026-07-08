@@ -1,0 +1,12 @@
+route_name: "Wolstonbury Hill"
+subtitle: "Prehistoric Enclosure · South Downs"
+description: "An unusual hilltop enclosure above Hurstpierpoint — the ditch runs inside the bank, hinting at ceremony rather than defence. A short, steep circuit with wide views across the Weald."
+icon: "🌾"
+total_distance: "3.2 km"
+duration: "~90 min"
+# No map: block — this route has no PMTiles basemap, so every map surface
+# renders the inline SVG schematic fallback (see MapPanel.svelte).
+stops:
+  - "wolstonbury-approach"
+  - "wolstonbury-ramparts"
+  - "wolstonbury-summit"
