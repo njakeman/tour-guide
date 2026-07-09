@@ -119,23 +119,6 @@
 </script>
 
 <div id="fw-app">
-  <!-- Night-mode map recolour (design handoff: "Night Map Filter"): maps
-       luminance into the red channel, crushes green/blue to near zero.
-       Rendered once app-wide; referenced by the night theme's
-       --map-canvas-filter: url(#nm-red) — same-document url(#) required. -->
-  <svg width="0" height="0" aria-hidden="true">
-    <filter id="nm-red" color-interpolation-filters="sRGB">
-      <feColorMatrix
-        type="matrix"
-        values="
-        0.52 0.68 0.24 0 0
-        0.10 0.13 0.05 0 0
-        0.03 0.04 0.02 0 0
-        0    0    0    1 0"
-      />
-    </filter>
-  </svg>
-
   {#if view === 'library' || view === 'route'}
     <TourLibrary
       {routes}

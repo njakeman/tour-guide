@@ -183,10 +183,12 @@
   --map-fill:     #0c0603;
   --map-stroke:   #3a1c0e;
   --map-route:    #a8431c;
-  /* Red-light recolour of the shared map asset: the #nm-red feColorMatrix
-     (defined once in App.svelte) maps luminance into the red channel and
-     crushes green/blue — truest single-hue red for dark adaptation. */
-  --map-canvas-filter: url(#nm-red) brightness(.9);
+  /* Red-light recolour of the shared map asset. Pure-CSS chain (the design
+     handoff's "portable" recipe) — NOT the feColorMatrix url(#…) variant:
+     WebKit fails to apply SVG-referenced filters to composited, continuously
+     painting elements like the WebGL map canvas, so url() silently no-ops on
+     iPhones. Do not "upgrade" this back to feColorMatrix. */
+  --map-canvas-filter: sepia(1) saturate(3.2) hue-rotate(-34deg) brightness(.6) contrast(1.05);
   --pin-done:     #8a3818;
   --pin-current:  #a8431c;
   --pin-todo-bg:  #3a1c0e;
