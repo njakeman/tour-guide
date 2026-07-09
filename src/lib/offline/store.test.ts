@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { isBasemapCached, cacheBasemap, basemapSize, online } from './store'
 import { PMTILES_CACHE } from '../pwa/workbox-config'
 
-const URL = '/tours/cissbury-ring/cissbury-tiles-v2.pmtiles'
+const URL = '/tours/cissbury-ring/cissbury-tiles-3.pmtiles'
 
 /** Build a fake CacheStorage whose single cache has the given match/add. */
 function stubCaches(cache: { match?: unknown; add?: unknown }) {

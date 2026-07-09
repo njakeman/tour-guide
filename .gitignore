@@ -11,9 +11,9 @@ dist/
 # Real tour media in public/tours/ should be committed — only the demo placeholders are gitignored.
 # Ignore the seeded media inside the directory, but un-ignore committed real assets.
 /public/tours/cissbury-ring/*
-!/public/tours/cissbury-ring/cissbury-tiles-v2.pmtiles
+!/public/tours/cissbury-ring/cissbury-tiles-3.pmtiles
 /public/tours/wolstonbury-hill/*
-!/public/tours/wolstonbury-hill/wolstonbury.pmtiles
+!/public/tours/wolstonbury-hill/wolstonbury_v5.pmtiles
 .env
 .env.local
 .env.*.local

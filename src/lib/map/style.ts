@@ -91,10 +91,11 @@ export function buildMapStyle(
 /**
  * Map-level zoom clamps. With the base style the user may zoom out past the
  * tileset for context (ne2_shaded covers low zooms; the vector overzooms);
- * pmtiles-only keeps the original 11–17 tileset clamp.
+ * pmtiles-only clamps to the tilesets' 12–17 floor — below z12 the tour
+ * tilesets have no tiles, so allowing it offline would show a blank frame.
  */
 export function mapZoomRange(hasBaseStyle: boolean): { minZoom: number; maxZoom: number } {
-  return hasBaseStyle ? { minZoom: 5, maxZoom: 17 } : { minZoom: 11, maxZoom: 17 }
+  return hasBaseStyle ? { minZoom: 5, maxZoom: 17 } : { minZoom: 12, maxZoom: 17 }
 }
 
 /**

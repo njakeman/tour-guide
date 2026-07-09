@@ -9,7 +9,7 @@ import {
   BASE_STYLE_ATTRIBUTION,
 } from './style'
 
-const BASEMAP_URL = '/tours/wolstonbury-hill/wolstonbury.pmtiles'
+const BASEMAP_URL = '/tours/wolstonbury-hill/wolstonbury_v5.pmtiles'
 
 /** Small stand-in for fieldworks-minimal.style.json (same source ids/shape). */
 function fixtureBaseStyle(): StyleSpecification {
@@ -100,7 +100,7 @@ describe('buildMapStyle — merged with the OpenFreeMap base', () => {
 describe('mapZoomRange', () => {
   it('relaxes minZoom for the base style, keeps the tileset clamp without', () => {
     expect(mapZoomRange(true)).toEqual({ minZoom: 5, maxZoom: 17 })
-    expect(mapZoomRange(false)).toEqual({ minZoom: 11, maxZoom: 17 })
+    expect(mapZoomRange(false)).toEqual({ minZoom: 12, maxZoom: 17 })
   })
 })
 

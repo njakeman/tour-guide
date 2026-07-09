@@ -5,9 +5,9 @@ icon: "🪨"
 total_distance: "2.4 km"
 duration: "~70 min"
 map:
-  basemap: "/tours/cissbury-ring/cissbury-tiles-v2.pmtiles"  # local PMTiles raster basemap
+  basemap: "/tours/cissbury-ring/cissbury-tiles-3.pmtiles"  # local PMTiles raster basemap
   center: [-0.3835, 50.8603]   # [lng, lat] — map centre
-  zoom: 14                    # initial zoom (tileset covers zoom levels 11–17)
+  zoom: 14                    # initial zoom (tileset covers zoom levels 12–17)
 stops:
   - "cissbury-entrance"
   - "cissbury-summit"

@@ -75,14 +75,18 @@ swaps the body in place) runs a hydration pass over `.body-text`:
 
 ### Responsive stop screen (design handoff: "Tour Responsive Proof")
 
-`src/lib/TourStop.svelte` is **one component tree for every width** — a single
-`720px` viewport breakpoint decides the layout; nothing is added or removed
-between sizes:
+`src/lib/TourStop.svelte` is **one component tree for every size** — a single
+breakpoint decides the layout; nothing is added or removed between sizes.
+Master–detail requires the viewport to be **wide AND tall** (`≥720px` width
+AND `≥560px` height) so a landscape phone (wide but short, e.g. 844×390)
+keeps the phone layout; the phone media condition is the exact logical
+complement (`(max-width: 719.98px), (max-height: 559.98px)` — comma = OR):
 
-- **< 720px (phone)** — paginated: the stop detail is primary; the map and the
-  stop list live behind the bottom tab bar (`Stop / Map & route / Stops`,
-  `.ts-tab[data-view]`, local `phoneView` state). Accordions stack vertically.
-- **≥ 720px (tablet landscape)** — master–detail: a persistent 400px left rail
+- **Phone (narrow OR short)** — paginated: the stop detail is primary; the map
+  and the stop list live behind the bottom tab bar (`Stop / Map & route /
+  Stops`, `.ts-tab[data-view]`, local `phoneView` state). Accordions stack
+  vertically.
+- **Tablet (wide AND tall)** — master–detail: a persistent 400px left rail
   (`.ts-rail`) holds the map + stop list; the detail fills the right; the tab
   bar is hidden; Evidence/Interpretation sit side by side; title 32→42px,
   hero 196→256px.
@@ -97,19 +101,20 @@ order decides.
 ### Responsive Landing (design handoff: tablet master–detail)
 
 `src/lib/TourLibrary.svelte` is the **Landing shell** and applies the same
-one-DOM / single-720px-breakpoint model as the stop screen. It owns the status
+one-DOM / wide-AND-tall-breakpoint model as the stop screen (RouteMap's
+tablet-only cosmetic block uses the same condition). It owns the status
 bar + shared app header (wordmark, "Field guide" eyebrow, `ThemeToggle`) and a
 `.tl-body[data-phone-view]` split into `.tl-rail` (the card list — "Tours"
 title, filters, `.tour-list` of `.tour-card[data-tour][data-state]`) and
 `.tl-overview` (which renders `src/lib/RouteMap.svelte`).
 
-- **< 720px (phone)** — paginated: `data-phone-view` (driven by App's `view`,
-  `'library' | 'route'`) shows the rail OR the overview. Tapping a card calls
-  `onSelect` → `selectRoute` (`#/route`); the overview's phone-only `.nav-back`
-  chip returns to the list.
-- **≥ 720px (tablet landscape)** — master–detail: 472px rail + overview both
+- **Phone (narrow OR short)** — paginated: `data-phone-view` (driven by App's
+  `view`, `'library' | 'route'`) shows the rail OR the overview. Tapping a card
+  calls `onSelect` → `selectRoute` (`#/route`); the overview's phone-only
+  `.nav-back` chip returns to the list.
+- **Tablet (wide AND tall)** — master–detail: 472px rail + overview both
   visible; the phone's standalone Route page is **folded into the overview**, so
-  there is no separate Route view at tablet width. The back chip is hidden.
+  there is no separate Route view at tablet size. The back chip is hidden.
 
 `RouteMap.svelte` is **not a full screen** — it is the overview pane content
 (`.tour-overview[data-tour]`: hero, description, meta chips, `MapPanel`,
@@ -130,7 +135,7 @@ width but may be `display:none` (phone, behind the Map tab), MapPanel defers
 container size, and calls `map.resize()` on later size changes (tab reveal,
 breakpoint flip, orientation). One instance per mounted panel; never create a
 second instance per breakpoint. This also means a MapPanel that stays
-`display:none` (e.g. the phone hero map at ≥720px, see below) never
+`display:none` (e.g. the phone hero map at tablet size, see below) never
 instantiates MapLibre at all — no wasted WebGL context.
 
 - `maplibre-gl` and `pmtiles` are **dynamically imported** inside `onMount` so
@@ -156,7 +161,8 @@ instantiates MapLibre at all — no wasted WebGL context.
   instance) and adds the required OpenFreeMap/OpenMapTiles/OSM attribution
   (the JSON ships without one).
 - Zoom clamps via `mapZoomRange`: **5–17 with the base layer** (zoom out for
-  context), **11–17 pmtiles-only**. No manual layer minzoom is needed — the
+  context), **12–17 pmtiles-only** (the tour tilesets' floor — below z12 they
+  have no tiles). No manual layer minzoom is needed — the
   pmtiles protocol's TileJSON carries the header's minzoom/maxzoom/bounds and
   MapLibre never requests raster tiles outside them.
 - **Error filter (`isFatalMapError`)**: pre-`load` map errors only drop to the
@@ -214,11 +220,11 @@ never recentred on the fix** — the offline PMTiles cache only covers a fixed
 area, so the viewport must stay under the user's control; panning away from
 the locator is expected and does not snap back.
 
-**Phone stop-hero (`TourStop.svelte`):** on phone (<720px) the stop's hero
-plate is a live `MapPanel` centred on the current stop (`center`, `zoom={16}`)
-instead of the photo — useful for orientation mid-walk. On
-tablet (≥720px) the hero shows the photo as before, since the rail map is
-already permanently visible; the hero `MapPanel` stays `display:none` there
+**Phone stop-hero (`TourStop.svelte`):** at phone size (narrow OR short) the
+stop's hero plate is a live `MapPanel` centred on the current stop (`center`,
+`zoom={16}`) instead of the photo — useful for orientation mid-walk. At
+tablet size (wide AND tall) the hero shows the photo as before, since the rail
+map is already permanently visible; the hero `MapPanel` stays `display:none` there
 and so never initialises. Both blocks exist in the DOM at every width (`.plate
 stop-hero` renders `.hero-map` unconditionally when the stop has coordinates,
 alongside the existing `<img>`/SVG); the `@media` blocks at the end of
@@ -256,6 +262,17 @@ Svelte 4 stores coexist with runes (bridged via `writable` + `$effect`):
 
 Three CSS custom-property blocks keyed on `[data-theme="light|dark|night"]` live in `src/styles/brand.css` — the single file authors edit to rebrand. `src/app.css` contains structural CSS only (reset, keyframes, utility classes) and must not contain token values. Import order in `main.ts`: `brand.css` before `app.css`.
 
+**Map recolouring (design handoff "Night Map Filter"):** one map asset serves
+all three modes. The per-theme `--map-canvas-filter` token (none / dark dip /
+night `url(#nm-red) brightness(.9)`) is applied by `app.css` to
+`.map-canvas .maplibregl-canvas` **only** — the WebGL tile canvas. Markers,
+popups and the attribution control are canvas *siblings* inside MapLibre's
+canvas container and must stay unfiltered so their per-theme colours read
+crisp. The `#nm-red` feColorMatrix (truest single-hue red for dark adaptation)
+is defined once in `App.svelte`; `filter: url(#…)` needs a same-document
+reference, so don't move it. Transition: `filter .45s ease`. The SVG schematic
+fallback is already tokened per theme and takes no filter.
+
 ### PWA / service worker
 
 `vite-plugin-pwa` (Workbox) generates `sw.js` + `manifest.webmanifest` **only at build**. There is no service worker in `npm run dev` (the `devOptions` line in `vite.config.ts` is intentionally commented out). To test offline behaviour, use `npm run build && npm run preview`.
@@ -284,7 +301,7 @@ Auto-deploys on push to `main` via `.github/workflows/deploy.yml`:
 
 ### Media assets
 
-Real tour media goes in `public/tours/<route-id>/` and is committed to the repo. The demo tours' media (`public/tours/cissbury-ring/` and `public/tours/wolstonbury-hill/`) is gitignored and generated by `npm run demo:seed` (see `scripts/seed-demo.mjs` — zero-dependency Node ESM with a per-route `ROUTES` spec table, produces PNG/MP3/MP4/GLB). The exceptions are the real committed basemaps, un-ignored in `.gitignore`: `cissbury-ring/cissbury-tiles-v2.pmtiles` and `wolstonbury-hill/wolstonbury.pmtiles`.
+Real tour media goes in `public/tours/<route-id>/` and is committed to the repo. The demo tours' media (`public/tours/cissbury-ring/` and `public/tours/wolstonbury-hill/`) is gitignored and generated by `npm run demo:seed` (see `scripts/seed-demo.mjs` — zero-dependency Node ESM with a per-route `ROUTES` spec table, produces PNG/MP3/MP4/GLB). The exceptions are the real committed basemaps, un-ignored in `.gitignore`: `cissbury-ring/cissbury-tiles-3.pmtiles` and `wolstonbury-hill/wolstonbury_v5.pmtiles`.
 
 ### Tests
 
