@@ -48,9 +48,6 @@
     onBack = () => {},
   }: Props = $props()
 
-  type Filter = 'nearby' | 'all' | 'saved'
-  let filter = $state<Filter>('nearby')
-
   // Per-route offline readiness: true once the tour's basemap is in the
   // SW cache (tour text is always offline — it ships in the app bundle).
   let offlineReady = $state<Record<string, boolean>>({})
@@ -109,12 +106,8 @@
     })
   )
 
-  const displayed = $derived.by<TourRoute[]>(() => {
-    if (filter === 'nearby') return sorted
-    if (filter === 'all')    return [...routes]
-    // "Saved" = tours whose basemap is stored for offline use
-    return routes.filter((r) => offlineReady[r.id])
-  })
+  // Always the distance-sorted list (nearest first; input order with no fix)
+  const displayed = $derived(sorted)
 
   const nearbyCount = $derived(
     routes.filter((r) => isFinite(routeDistance(r, sortPos))).length
@@ -145,12 +138,13 @@
 
   <!-- Shared app header (constant across both panes) -->
   <div class="app-header">
-    <div class="wordmark">
+    <!-- Wordmark doubles as the home button — returns to the tour list -->
+    <button class="wordmark" type="button" aria-label="fieldWorks — back to tour list" onclick={onBack}>
       <div class="logo-badge">
         <HengeLogo size={22} />
       </div>
       <span class="wordmark-text">field<span class="accent">Works</span></span>
-    </div>
+    </button>
     <span class="fieldguide-eyebrow">Field guide</span>
     <div class="header-spacer"></div>
     <ThemeToggle />
@@ -166,27 +160,11 @@
         <p class="tours-subtitle">
           Prehistoric South Downs{#if nearbyCount > 0} · {nearbyCount} nearby{/if}
         </p>
-        <div class="filter-row" role="group" aria-label="Filter tours">
-          {#each (['nearby', 'all', 'saved'] as Filter[]) as f}
-            <button
-              aria-pressed={filter === f}
-              class="filter-btn"
-              class:active={filter === f}
-              onclick={() => (filter = f)}
-            >
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </button>
-          {/each}
-        </div>
       </div>
 
       <div class="tour-list">
         {#if displayed.length === 0}
-          <p class="empty">
-            {filter === 'saved'
-              ? 'No saved tours yet — open a tour and tap “save map offline”.'
-              : 'No tours found.'}
-          </p>
+          <p class="empty">No tours found.</p>
         {/if}
 
         {#each displayed as route (route.id)}
@@ -304,10 +282,16 @@
     border-bottom: 1px solid var(--border);
   }
 
+  /* Button reset — the wordmark is the home button but must look unchanged */
   .wordmark {
     display: flex;
     align-items: center;
     gap: 8px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    cursor: pointer;
   }
 
   .logo-badge {
@@ -377,33 +361,6 @@
   }
 
   /* Segmented filter */
-  .filter-row {
-    display: flex;
-    gap: 6px;
-    margin-top: 16px;
-  }
-
-  .filter-btn {
-    flex: none;
-    padding: 8px 16px;
-    border-radius: 20px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    color: var(--muted);
-    font-family: var(--font-sans);
-    font-size: 0.8125rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-  }
-
-  .filter-btn.active {
-    background: var(--text);
-    border-color: var(--text);
-    color: var(--bg);
-    font-weight: 600;
-  }
-
   /* Card list */
   .tour-list {
     flex: 1;

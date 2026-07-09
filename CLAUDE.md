@@ -107,9 +107,11 @@ order decides.
 `src/lib/TourLibrary.svelte` is the **Landing shell** and applies the same
 one-DOM / wide-AND-tall-breakpoint model as the stop screen (RouteMap's
 tablet-only cosmetic block uses the same condition). It owns the status
-bar + shared app header (wordmark, "Field guide" eyebrow, `ThemeToggle`) and a
+bar + shared app header (wordmark — a button that navigates home via `onBack`,
+"Field guide" eyebrow, `ThemeToggle`) and a
 `.tl-body[data-phone-view]` split into `.tl-rail` (the card list — "Tours"
-title, filters, `.tour-list` of `.tour-card[data-tour][data-state]`) and
+title, `.tour-list` of `.tour-card[data-tour][data-state]`, always
+distance-sorted nearest-first; no filter buttons) and
 `.tl-overview` (which renders `src/lib/RouteMap.svelte`).
 
 - **Phone (narrow OR short)** — paginated: `data-phone-view` (driven by App's
@@ -226,7 +228,9 @@ the locator is expected and does not snap back.
 
 **Phone stop-hero (`TourStop.svelte`):** at phone size (narrow OR short) the
 stop's hero plate is a live `MapPanel` centred on the current stop (`center`,
-`zoom={16}`) instead of the photo — useful for orientation mid-walk. At
+`zoom={16}`) instead of the photo — useful for orientation mid-walk. The
+TourStop rail map also passes `center` (no zoom override), so Prev/Next glides
+both maps to the active stop via `easeTo` in MapPanel's override `$effect`. At
 tablet size (wide AND tall) the hero shows the photo as before, since the rail
 map is already permanently visible; the hero `MapPanel` stays `display:none` there
 and so never initialises. Both blocks exist in the DOM at every width (`.plate
@@ -260,7 +264,7 @@ This codebase uses Svelte 5 runes throughout (`$state`, `$derived`, `$effect`, `
 Svelte 4 stores coexist with runes (bridged via `writable` + `$effect`):
 - `src/lib/geo/store.ts` — `geolocation` (writable, browser Geolocation API) + `createProximityStore` (derived, Haversine distances to all stops). The GPS watch is subscriber-scoped: it starts on first subscribe and `clearWatch` fires on last unsubscribe (writable start/stop notifier). The proximity store takes a `Readable<TourStop[]>` plus an optional injectable geo store (for tests) so it reacts to both GPS updates and route changes.
 - `src/lib/theme/store.ts` — `theme` store (light/dark/night). Persists to `localStorage` under `fw-theme` only on explicit user choice; until then it follows system `prefers-color-scheme` changes live. Applies `data-theme` attribute to `<html>` and updates the `theme-color` meta tag. Cycle order: light → dark → night → light.
-- `src/lib/offline/store.ts` — `online` (readable, `navigator.onLine` + events) and the pmtiles cache helpers: `isBasemapCached`, `cacheBasemap` (full-file warm-up GET), `basemapSize` (HEAD). Drives the "save map offline" button on the route view and the real per-tour offline badges / "Saved" filter in the library.
+- `src/lib/offline/store.ts` — `online` (readable, `navigator.onLine` + events) and the pmtiles cache helpers: `isBasemapCached`, `cacheBasemap` (full-file warm-up GET), `basemapSize` (HEAD). Drives the "save map offline" button on the route view and the per-tour offline badges in the library.
 
 ### Theming
 
@@ -318,6 +322,6 @@ Run with vitest (`svelteTesting()` in `vitest.config.ts` makes Svelte 5 componen
 - `src/lib/map/markers.test.ts` — the map-marker DOM builders: numbered stop pin (aria-label, HTML number overlay, title escaping), walker locator heading rotation/hiding, popup eyebrow distance formatting and in-place updates. The live map wiring (marker anchors, popup open/close, locator following the fix) is verified manually in the browser — jsdom has no WebGL.
 - `src/lib/media/models.test.ts` — `hydrateModels` with an injected fake loader: no import when no stub, stub → `<model-viewer>` upgrade, loader-failure fallback, idempotence, retry after failure. **Never put `.media-model` HTML in component-test fixtures** — that would trigger the real `@google/model-viewer` import under jsdom.
 - `src/lib/pwa/workbox-config.test.ts` — guards the SW rules (tour media excluded from precache, pmtiles rule is Range-aware CacheFirst)
-- `src/lib/TourStop.test.ts`, `src/lib/TourLibrary.test.ts`, `src/lib/RouteMap.test.ts` — component tests (@testing-library/svelte): proximity footer states incl. stale-fix handling, nav edges, SVG map fallback, saved-filter empty state, and the responsive one-DOM layouts. For the Landing: rail (`.tour-list`) + overview (`.tour-overview`) present together, `data-phone-view` follows the `view` prop, selected-vs-idle card `data-state`. For RouteMap-as-overview: `.start-tour[data-tour]` hook + Start/Resume CTA text and the `.tour-overview[data-tour]` root. For TourStop: the phone hero `MapPanel` and the rail `MapPanel` both mount with distinct `id`s (`tour-map-hero` / `tour-map`) and accessible names, since jsdom has no WebGL so both fall back to the SVG schematic — the live map, its markers (current-stop pin, user-location dot), and the recentring behaviour are verified manually in the browser instead. TourStop also covers the lightbox (open from body image and hero button, close via Escape/button/backdrop, image click does not close).
+- `src/lib/TourStop.test.ts`, `src/lib/TourLibrary.test.ts`, `src/lib/RouteMap.test.ts` — component tests (@testing-library/svelte): proximity footer states incl. stale-fix handling, nav edges, SVG map fallback, the wordmark home button, and the responsive one-DOM layouts. For the Landing: rail (`.tour-list`) + overview (`.tour-overview`) present together, `data-phone-view` follows the `view` prop, selected-vs-idle card `data-state`. For RouteMap-as-overview: `.start-tour[data-tour]` hook + Start/Resume CTA text and the `.tour-overview[data-tour]` root. For TourStop: the phone hero `MapPanel` and the rail `MapPanel` both mount with distinct `id`s (`tour-map-hero` / `tour-map`) and accessible names, since jsdom has no WebGL so both fall back to the SVG schematic — the live map, its markers (current-stop pin, user-location dot), and the recentring behaviour are verified manually in the browser instead. TourStop also covers the lightbox (open from body image and hero button, close via Escape/button/backdrop, image click does not close).
 
 Expected baseline: **122 tests pass, 0 errors** from `npm run check`.

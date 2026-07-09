@@ -144,14 +144,19 @@
     const zoom = zoomOverride
     if (!mapReady || !mapInstance) return
     const key = center ? `${center[0]},${center[1]}` : ''
-    if (center && key !== appliedCenterKey) {
-      mapInstance.setCenter(center)
-      appliedCenterKey = key
-    }
-    if (zoom != null && zoom !== appliedZoom) {
-      mapInstance.setZoom(zoom)
-      appliedZoom = zoom
-    }
+    const centerChanged = !!center && key !== appliedCenterKey
+    const zoomChanged = zoom != null && zoom !== appliedZoom
+    if (!centerChanged && !zoomChanged) return
+    // Glide rather than jump — Prev/Next recentres read as navigation, not a
+    // teleport. The applied* guards keep incidental parent re-renders (which
+    // recreate the center array literal) from re-animating.
+    mapInstance.easeTo({
+      ...(centerChanged && center ? { center } : {}),
+      ...(zoomChanged && zoom != null ? { zoom } : {}),
+      duration: 800,
+    })
+    if (centerChanged) appliedCenterKey = key
+    if (zoomChanged) appliedZoom = zoom
   })
 
   onMount(() => {
@@ -251,6 +256,14 @@
         mapInstance.on('load', () => {
           if (disposed || !mapInstance) return
           mapReady = true
+
+          // MapLibre force-expands the compact attribution on load (its
+          // options can't start it minimised). Collapse it the same way its
+          // own drag-collapse does; once compact, later _updateCompact runs
+          // never re-add the class, and the ⓘ toggle still expands it.
+          mapEl
+            ?.querySelector('.maplibregl-ctrl-attrib')
+            ?.classList.remove('maplibregl-compact-show')
 
           // Numbered chalk-disc stop markers (design handoff: "Map Markers").
           // Pin tip at the element's bottom-centre → anchor 'bottom'. Tap

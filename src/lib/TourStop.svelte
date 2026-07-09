@@ -203,7 +203,15 @@
          Map / Stops tabs below. Present in the DOM at every width. -->
     <aside class="ts-rail" aria-label="Route map and stops">
       <div class="rail-map">
-        <MapPanel {route} currentStopId={stop.id} {visitedStopIds} onGoToStop={goStopFromRail} />
+        <!-- center follows the active stop, so Prev/Next glides the rail map
+             to each stop; zoom is left alone (route default, user-adjustable) -->
+        <MapPanel
+          {route}
+          currentStopId={stop.id}
+          {visitedStopIds}
+          onGoToStop={goStopFromRail}
+          center={stop.lat != null && stop.lng != null ? [stop.lng, stop.lat] : undefined}
+        />
       </div>
       <div class="rail-list">
         <StopList

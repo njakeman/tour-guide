@@ -46,7 +46,7 @@ describe('TourLibrary', () => {
     expect(onSelect).toHaveBeenCalledWith('a')
   })
 
-  it('keeps input order under the nearby filter when there is no GPS fix', () => {
+  it('keeps input order in the distance-sorted list when there is no GPS fix', () => {
     // With no fix every distance is Infinity; the comparator must return 0
     // (stable, input order) rather than Infinity - Infinity = NaN.
     const routes = [makeRoute('a', 'Route A'), makeRoute('b', 'Route B'), makeRoute('c', 'Route C')]
@@ -57,12 +57,13 @@ describe('TourLibrary', () => {
     expect(order).toEqual(['a', 'b', 'c'])
   })
 
-  it('shows an explanatory empty state on the Saved filter', async () => {
+  it('navigates home when the wordmark is clicked', async () => {
+    const onBack = vi.fn()
     render(TourLibrary, {
-      props: { routes: [makeRoute('a', 'Route A')], onSelect: vi.fn() },
+      props: { routes: [makeRoute('a', 'Route A')], onSelect: vi.fn(), onBack },
     })
-    await fireEvent.click(screen.getByText('Saved'))
-    expect(screen.getByText(/No saved tours yet/)).toBeTruthy()
+    await fireEvent.click(screen.getByLabelText('fieldWorks — back to tour list'))
+    expect(onBack).toHaveBeenCalled()
   })
 
   it('does not show the offline badge before a tour is cached', () => {
