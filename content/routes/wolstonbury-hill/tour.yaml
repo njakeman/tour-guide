@@ -4,8 +4,10 @@ description: "An unusual hilltop enclosure above Hurstpierpoint — the ditch ru
 icon: "🌾"
 total_distance: "3.2 km"
 duration: "~90 min"
-# No map: block — this route has no PMTiles basemap, so every map surface
-# renders the inline SVG schematic fallback (see MapPanel.svelte).
+map:
+  basemap: "/tours/wolstonbury-hill/wolstonbury.pmtiles"  # local PMTiles raster basemap
+  center: [-0.1732, 50.9073]   # [lng, lat] — map centre
+  zoom: 14                     # initial zoom (tileset covers zoom levels 11–17)
 stops:
   - "wolstonbury-approach"
   - "wolstonbury-ramparts"

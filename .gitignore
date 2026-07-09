@@ -13,6 +13,7 @@ dist/
 /public/tours/cissbury-ring/*
 !/public/tours/cissbury-ring/cissbury-tiles-v2.pmtiles
 /public/tours/wolstonbury-hill/*
+!/public/tours/wolstonbury-hill/wolstonbury.pmtiles
 .env
 .env.local
 .env.*.local
