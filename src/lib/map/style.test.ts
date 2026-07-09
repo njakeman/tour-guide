@@ -9,7 +9,7 @@ import {
   BASE_STYLE_ATTRIBUTION,
 } from './style'
 
-const BASEMAP_URL = '/tours/wolstonbury-hill/wolstonbury_v5.pmtiles'
+const BASEMAP_URL = '/tours/wolstonbury-hill/wolstonbury.pmtiles'
 
 /** Small stand-in for fieldworks-minimal.style.json (same source ids/shape). */
 function fixtureBaseStyle(): StyleSpecification {

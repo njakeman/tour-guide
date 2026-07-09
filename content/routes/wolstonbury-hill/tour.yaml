@@ -5,7 +5,7 @@ icon: "🌾"
 total_distance: "3.2 km"
 duration: "~90 min"
 map:
-  basemap: "/tours/wolstonbury-hill/wolstonbury_v5.pmtiles"  # local PMTiles raster basemap
+  basemap: "/tours/wolstonbury-hill/wolstonbury.pmtiles"  # local PMTiles raster basemap
   center: [-0.1732, 50.9073]   # [lng, lat] — map centre
   zoom: 14                     # initial zoom (tileset covers zoom levels 12–17)
 stops:

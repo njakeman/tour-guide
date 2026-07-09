@@ -8,7 +8,7 @@ describe('workbox config', () => {
 
   it('serves pmtiles from a Range-request-aware CacheFirst rule', () => {
     const rule = workboxOptions.runtimeCaching.find((r) =>
-      r.urlPattern.test('/tours/cissbury-ring/cissbury-tiles-3.pmtiles')
+      r.urlPattern.test('/tours/cissbury-ring/cissbury.pmtiles')
     )
     expect(rule).toBeDefined()
     expect(rule!.handler).toBe('CacheFirst')
@@ -18,7 +18,7 @@ describe('workbox config', () => {
 
   it('matches pmtiles with the pmtiles rule, not the generic tour-media rule', () => {
     // Order matters: the first matching rule wins in Workbox
-    const url = '/tours/cissbury-ring/cissbury-tiles-3.pmtiles'
+    const url = '/tours/cissbury-ring/cissbury.pmtiles'
     const first = workboxOptions.runtimeCaching.find((r) => r.urlPattern.test(url))
     expect(first!.options.cacheName).toBe(PMTILES_CACHE)
   })
