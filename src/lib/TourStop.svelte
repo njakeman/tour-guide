@@ -1,15 +1,19 @@
 <!--
   Stop screen — the core fieldWorks experience, responsive per the design
-  handoff ("Tour Responsive Proof"): ONE component tree, one breakpoint,
-  nothing added or removed between sizes. The breakpoint is wide AND tall
-  (≥720px width AND ≥560px height) so a landscape phone stays one-column.
+  handoffs ("Tour Responsive Proof" + "Landscape Concepts 1a"): ONE component
+  tree, nothing added or removed between sizes; CSS decides among THREE
+  layouts:
 
-  - Phone (narrow OR short): paginated. The stop detail is primary; the map
-    and the stop list live behind the bottom tab bar (Stop / Map & route /
-    Stops).
-  - Tablet (wide AND tall): master–detail. A persistent left rail shows
-    the map + stop list; the detail fills the right; no tab bar; the
-    Evidence/Interpretation accordions sit side by side.
+  - Phone (width < 720px, any height): paginated. The stop detail is primary;
+    the map and the stop list live behind the bottom tab bar (Stop /
+    Map & route / Stops).
+  - Tablet (≥720px wide AND ≥560px tall): master–detail. A persistent left
+    rail shows the map + stop list; the detail fills the right; no tab bar;
+    the Evidence/Interpretation accordions sit side by side.
+  - Landscape phone shell (≥720px wide AND <560px tall): "edge rails" — the
+    same DOM re-laid by CSS grid + display:contents into a 76px left nav
+    rail, a swappable middle (same phoneView state), and a 150px right
+    action rail (see the last @media block).
 
   The map (MapPanel) exists in the DOM at every width and lazily initialises
   only when its container first has size — see MapPanel.svelte.
@@ -279,6 +283,11 @@
           </div>
         </div>
 
+        <!-- Textual detail. A plain block at portrait/tablet (no visual
+             effect); the landscape shell turns .scroll-body into a row and
+             scrolls THIS column beside the fixed media plate. -->
+        <div class="detail-content">
+
         <!-- Title block -->
         <div class="title-block">
           {#if stop.era}
@@ -331,6 +340,7 @@
         </div>
 
         <div class="scroll-spacer"></div>
+        </div> <!-- /.detail-content -->
       </div>
 
       <!-- Proximity footer + nav -->
@@ -1047,17 +1057,166 @@
     .plate { height: 256px; }             /* phone 196px */
   }
 
-  /* Short landscape (design handoff: "Sticky footer in landscape"): on a
-     landscape phone the sticky footer was obscuring much of the ~390px-tall
-     viewport. Minimise it — hide the decorative proximity line, drop the
-     Next-stop button 58→46px (still ≥44px hit target; the back square is
-     46px already), tighten padding, keep the label on one line. Portrait
-     phone and tablet footers are unchanged. Must stay after the blocks
-     above (equal-specificity overrides; source order wins). */
-  @media (max-height: 550px) and (orientation: landscape) {
+  /* Narrow-short landscape ONLY (<720px wide — e.g. iPhone SE rotated):
+     these viewports keep the portrait layout, so minimise its sticky footer
+     (design handoff: "Sticky footer in landscape"). Wide-short landscape
+     (≥720px) gets the dedicated shell below instead, where the footer
+     becomes the right action rail. */
+  @media (max-width: 719.98px) and (max-height: 550px) and (orientation: landscape) {
     .proximity-strip { display: none; }
     .nav-row { padding: 10px 16px 10px; }
     .nav-next { height: 46px; }
     .nav-next-label { white-space: nowrap; }
+  }
+
+  /* ── Landscape phone shell (design handoff: concept "1a — Edge rails") ──
+     Wide but SHORT (≥720px AND <560px, e.g. 844×390): the portrait layout
+     letterboxes here, so chrome docks to the sides and content spans the
+     full height. Three zones: 76px left nav rail (back / vertical tabs /
+     theme toggle) · swappable middle (driven by the SAME phoneView state as
+     the portrait tabs) · 150px right action rail (proximity, Prev, Next).
+
+     One DOM: `.screen` becomes a grid and `display: contents` hoists the
+     children of .app-header / .ts-body / .ts-detail into it. Because
+     .ts-detail is `contents` here, pane visibility retargets .scroll-body
+     (NOT .ts-detail, which the phone block above hides in map/stops views —
+     that would take the footer rail down with it).
+
+     NOTE: this block matches viewports the phone block above ALSO matches
+     (height < 560) — it must stay LAST so its equal-specificity rules win. */
+  @media (min-width: 720px) and (max-height: 559.98px) {
+    .screen {
+      max-width: none;
+      display: grid;
+      grid-template-columns: 76px 1fr 150px;
+      grid-template-rows: auto 1fr auto;
+      grid-template-areas:
+        'back   middle rail'
+        'tabs   middle rail'
+        'toggle middle rail';
+    }
+
+    /* Left-rail backdrop — a pseudo grid item spanning column 1 */
+    .screen::before {
+      content: '';
+      grid-row: 1 / -1;
+      grid-column: 1 / 2;
+      background: var(--surface-3);
+      border-right: 1px solid var(--border-2);
+    }
+
+    .status-bar,
+    .progress-bar,
+    .header-center { display: none; }
+
+    .app-header { display: contents; }
+    .app-header .nav-back {
+      grid-area: back;
+      justify-self: center;
+      margin-top: 12px;
+      width: 44px;
+      height: 44px;
+    }
+    .app-header :global(button.toggle) {
+      grid-area: toggle;
+      justify-self: center;
+      margin-bottom: 12px;
+    }
+
+    /* Vertical tabs in the rail middle (buttons are already icon-over-label) */
+    .ts-tabs {
+      grid-area: tabs;
+      align-self: center;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+      padding: 0 8px;
+      border-top: 0;
+      background: none;
+    }
+    .ts-tab { padding: 8px 0; }
+    .ts-tab-label {
+      font-size: 8px;
+      line-height: 1.15;
+      text-align: center;
+    }
+
+    /* Middle zone: rail panes and the stop detail share one grid area;
+       phoneView decides which shows. .ts-detail must stay `contents` in
+       every view so the footer rail survives map/stops. */
+    .ts-body,
+    .ts-detail { display: contents; }
+    .ts-body[data-phone-view='map'] .ts-detail,
+    .ts-body[data-phone-view='stops'] .ts-detail { display: contents; }
+
+    .ts-rail { grid-area: middle; min-width: 0; }
+    .scroll-body { grid-area: middle; min-width: 0; }
+
+    .ts-body[data-phone-view='map'] .scroll-body,
+    .ts-body[data-phone-view='stops'] .scroll-body { display: none; }
+    .ts-body[data-phone-view='map'] .ts-rail,
+    .ts-body[data-phone-view='stops'] .ts-rail { display: flex; }
+
+    /* Stop pane: media plate beside the scrolling text column */
+    .scroll-body {
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
+    }
+    .plate.stop-hero {
+      width: 220px;
+      flex: none;
+      height: auto;
+      margin: 12px 0 12px 12px;
+    }
+    .detail-content {
+      flex: 1;
+      min-width: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    .ts-accordions { flex-direction: row; align-items: flex-start; }
+    .accordion { flex: 1; }
+
+    /* Right action rail: the footer, docked and stacked */
+    .footer {
+      grid-area: rail;
+      display: flex;
+      flex-direction: column;
+      border-top: 0;
+      border-left: 1px solid var(--border-2);
+      background: var(--surface-3);
+      padding: 14px 12px;
+      min-height: 0;
+    }
+    .proximity-strip {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 0 2px 10px;
+    }
+    .proximity-text { font-size: 0.78125rem; }
+    .nav-row {
+      flex-direction: column;
+      gap: 8px;
+      padding: 0;
+      margin-top: auto;
+    }
+    .nav-row .nav-sq { width: 100%; height: 44px; }
+    .nav-next {
+      width: 100%;
+      height: auto;
+      padding: 12px 10px;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .nav-next-name {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      text-align: center;
+    }
   }
 </style>

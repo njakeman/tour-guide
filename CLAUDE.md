@@ -90,10 +90,21 @@ complement (`(max-width: 719.98px), (max-height: 559.98px)` — comma = OR):
   (`.ts-rail`) holds the map + stop list; the detail fills the right; the tab
   bar is hidden; Evidence/Interpretation sit side by side; title 32→42px,
   hero 196→256px.
-- **Short landscape** (`max-height: 550px and orientation: landscape`) — a
-  third small block minimises the sticky footer so it doesn't obscure the
-  short viewport: proximity line hidden, Next-stop button 58→46px, tighter
-  padding, nowrap label. Portrait/tablet footers unchanged.
+- **Landscape phone shell** (`min-width: 720px and max-height: 559.98px`,
+  design handoff concept "1a — Edge rails") — the same DOM re-laid by CSS
+  grid: 76px left nav rail (back button, vertical tabs, theme toggle — hoisted
+  out of `.app-header`/`.ts-tabs` via `display: contents`), swappable middle
+  (same `phoneView` state as the portrait tabs), 150px right action rail (the
+  `footer` docked as a column: proximity readout, Prev, Next). Subtleties:
+  `.ts-detail` stays `display: contents` in EVERY view here, so pane
+  visibility retargets `.scroll-body` (hiding `.ts-detail` — what the phone
+  block does — would take the footer rail down with it); this block matches
+  viewports the phone block also matches, so it must stay LAST in the style.
+  The `.detail-content` wrapper exists for this layout: `.scroll-body` becomes
+  a row (220px media plate beside the scrolling text column).
+- **Narrow-short landscape** (`max-width: 719.98px and max-height: 550px and
+  landscape`, e.g. iPhone SE rotated) — keeps the portrait layout with a
+  minimised sticky footer (proximity line hidden, Next 58→46px).
 
 Shared pieces: `src/lib/MapPanel.svelte` (map + SVG fallback, used by RouteMap
 and the TourStop rail; mounts at `#tour-map`) and `src/lib/StopList.svelte`
@@ -272,14 +283,16 @@ Three CSS custom-property blocks keyed on `[data-theme="light|dark|night"]` live
 
 **Map recolouring (design handoff "Night Map Filter"):** one map asset serves
 all three modes. The per-theme `--map-canvas-filter` token (none / dark dip /
-night `url(#nm-red) brightness(.9)`) is applied by `app.css` to
+night sepia→saturate→hue-rotate chain) is applied by `app.css` to
 `.map-canvas .maplibregl-canvas` **only** — the WebGL tile canvas. Markers,
 popups and the attribution control are canvas *siblings* inside MapLibre's
 canvas container and must stay unfiltered so their per-theme colours read
-crisp. The `#nm-red` feColorMatrix (truest single-hue red for dark adaptation)
-is defined once in `App.svelte`; `filter: url(#…)` needs a same-document
-reference, so don't move it. Transition: `filter .45s ease`. The SVG schematic
-fallback is already tokened per theme and takes no filter.
+crisp. **Night must stay the pure-CSS filter chain** — the handoff's
+feColorMatrix `url(#…)` variant silently no-ops on WebKit (long-standing
+Safari bugs applying SVG-referenced filters to composited, continuously
+painting elements like the map canvas), so it broke on iPhones; do not
+"upgrade" it back. Transition: `filter .45s ease`. The SVG schematic fallback
+is already tokened per theme and takes no filter.
 
 ### PWA / service worker
 
