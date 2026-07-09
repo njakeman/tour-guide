@@ -57,6 +57,9 @@
   --map-fill:     #e6ddc8;
   --map-stroke:   #c2b491;
   --map-route:    #b06a33;
+  /* One map asset serves all three modes: this filter recolours the live
+     tile canvas only (see app.css). Light shows the tiles as-authored. */
+  --map-canvas-filter: none;
   --pin-done:     #6e7551;
   --pin-current:  #b06a33;
   --pin-todo-bg:  #cabfa3;
@@ -119,6 +122,9 @@
   --map-fill:     #1d1e16;
   --map-stroke:   #34352c;
   --map-route:    #c47a3e;
+  /* Gentle dip of the shared map asset for dark mode (design handoff:
+     "Night Map Filter") */
+  --map-canvas-filter: brightness(.64) saturate(.68) contrast(1.08);
   --pin-done:     #9aa06f;
   --pin-current:  #c47a3e;
   --pin-todo-bg:  #34352c;
@@ -177,6 +183,10 @@
   --map-fill:     #0c0603;
   --map-stroke:   #3a1c0e;
   --map-route:    #a8431c;
+  /* Red-light recolour of the shared map asset: the #nm-red feColorMatrix
+     (defined once in App.svelte) maps luminance into the red channel and
+     crushes green/blue — truest single-hue red for dark adaptation. */
+  --map-canvas-filter: url(#nm-red) brightness(.9);
   --pin-done:     #8a3818;
   --pin-current:  #a8431c;
   --pin-todo-bg:  #3a1c0e;

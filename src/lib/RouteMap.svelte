@@ -405,10 +405,12 @@
     backdrop-filter: blur(3px);
   }
 
-  /* ── Responsive breakpoint (720px) ───────────────────────────────────────
+  /* ── Responsive breakpoint (wide AND tall) ───────────────────────────────
      Must come after the base rules above: it overrides height/font-size/
-     display at equal specificity, so source order decides the winner. */
-  @media (min-width: 720px) {
+     display at equal specificity, so source order decides the winner.
+     Same ≥720×560 condition as the Landing/stop screens — a landscape phone
+     keeps the phone overview (incl. the .ov-back chip, its only way back). */
+  @media (min-width: 720px) and (min-height: 560px) {
     .ov-hero { height: 206px; }
     .ov-title { font-size: 2.5rem; }   /* 40px */
     .ov-back { display: none; }         /* rail is always visible on tablet */

@@ -42,6 +42,18 @@ body {
   100% { opacity: 0; }
 }
 
+/* ── Map canvas theming (design handoff: "Night Map Filter") ──
+   One map asset serves Light/Dark/Night: the per-theme --map-canvas-filter
+   (brand.css) recolours the WebGL TILE canvas only. Markers, popups and the
+   attribution control are siblings of the canvas inside MapLibre's canvas
+   container — they must stay unfiltered so their per-theme colours read
+   crisp, which this selector guarantees. Night references the #nm-red
+   feColorMatrix defined once in App.svelte. */
+.map-canvas .maplibregl-canvas {
+  filter: var(--map-canvas-filter, none);
+  transition: filter 0.45s ease;
+}
+
 /* ── Map markers (MapLibre HTML markers, design handoff: "Map Markers") ──
    Global (not component-scoped) because MapLibre relocates marker elements
    outside Svelte's DOM, so scoped styles can't reach them. All colours are

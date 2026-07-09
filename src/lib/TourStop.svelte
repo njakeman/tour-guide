@@ -1,11 +1,13 @@
 <!--
   Stop screen — the core fieldWorks experience, responsive per the design
-  handoff ("Tour Responsive Proof"): ONE component tree, a single 720px
-  viewport breakpoint, nothing added or removed between sizes.
+  handoff ("Tour Responsive Proof"): ONE component tree, one breakpoint,
+  nothing added or removed between sizes. The breakpoint is wide AND tall
+  (≥720px width AND ≥560px height) so a landscape phone stays one-column.
 
-  - < 720px (phone): paginated. The stop detail is primary; the map and the
-    stop list live behind the bottom tab bar (Stop / Map & route / Stops).
-  - ≥ 720px (tablet landscape): master–detail. A persistent left rail shows
+  - Phone (narrow OR short): paginated. The stop detail is primary; the map
+    and the stop list live behind the bottom tab bar (Stop / Map & route /
+    Stops).
+  - Tablet (wide AND tall): master–detail. A persistent left rail shows
     the map + stop list; the detail fills the right; no tab bar; the
     Evidence/Interpretation accordions sit side by side.
 
@@ -975,13 +977,19 @@
     color: var(--eyebrow);
   }
 
-  /* ── Responsive breakpoint (720px) ───────────────────────────────────────
+  /* ── Responsive breakpoint (wide AND tall) ───────────────────────────────
      These media blocks MUST come after all base rules above: several
      override properties the base rules also set (display, font-size,
-     height), and with equal specificity the later rule wins. */
+     height), and with equal specificity the later rule wins.
 
-  /* Phone (< 720px): paginated — one pane at a time, driven by the tab bar */
-  @media (max-width: 719.98px) {
+     Master–detail requires the viewport to be wide AND tall (≥720×560) so a
+     landscape phone (e.g. 844×390 — wide but short) keeps the one-column
+     phone layout. The phone condition is the exact logical complement
+     (width < 720 OR height < 560, comma = OR); this subsumes the design
+     handoff's separate short-landscape guard, so no third block is needed. */
+
+  /* Phone (narrow OR short): paginated — one pane at a time, via the tab bar */
+  @media (max-width: 719.98px), (max-height: 559.98px) {
     .screen { max-width: 430px; }
     .ts-rail { display: none; }
 
@@ -1016,8 +1024,8 @@
     .ts-body[data-phone-view='stops'] .rail-list { padding-top: 4px; }
   }
 
-  /* Tablet / wide (≥ 720px): master–detail — rail persistent, no tab bar */
-  @media (min-width: 720px) {
+  /* Tablet (wide AND tall): master–detail — rail persistent, no tab bar */
+  @media (min-width: 720px) and (min-height: 560px) {
     .ts-rail {
       display: flex;
       width: 400px;

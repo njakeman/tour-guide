@@ -544,19 +544,21 @@
     border-radius: 7px;
   }
 
-  /* ── Responsive breakpoint (720px) ───────────────────────────────────────
+  /* ── Responsive breakpoint (wide AND tall) ───────────────────────────────
      Must come after the base rules above: these override display/width at
-     equal specificity, so source order decides the winner. */
+     equal specificity, so source order decides the winner.
+     Master–detail requires ≥720×560 (a landscape phone is wide but short and
+     keeps the phone layout); the phone condition is the exact complement. */
 
-  /* Phone (< 720px): paginated — one pane at a time, keyed to `view` */
-  @media (max-width: 719.98px) {
+  /* Phone (narrow OR short): paginated — one pane at a time, keyed to `view` */
+  @media (max-width: 719.98px), (max-height: 559.98px) {
     .screen { max-width: 430px; }
     .tl-body[data-phone-view='library'] .tl-overview { display: none; }
     .tl-body[data-phone-view='route'] .tl-rail { display: none; }
   }
 
-  /* Tablet / wide (≥ 720px): master–detail — rail + overview side by side */
-  @media (min-width: 720px) {
+  /* Tablet (wide AND tall): master–detail — rail + overview side by side */
+  @media (min-width: 720px) and (min-height: 560px) {
     .tl-rail {
       width: 472px;
       flex: none;
