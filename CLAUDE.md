@@ -90,6 +90,10 @@ complement (`(max-width: 719.98px), (max-height: 559.98px)` — comma = OR):
   (`.ts-rail`) holds the map + stop list; the detail fills the right; the tab
   bar is hidden; Evidence/Interpretation sit side by side; title 32→42px,
   hero 196→256px.
+- **Short landscape** (`max-height: 550px and orientation: landscape`) — a
+  third small block minimises the sticky footer so it doesn't obscure the
+  short viewport: proximity line hidden, Next-stop button 58→46px, tighter
+  padding, nowrap label. Portrait/tablet footers unchanged.
 
 Shared pieces: `src/lib/MapPanel.svelte` (map + SVG fallback, used by RouteMap
 and the TourStop rail; mounts at `#tour-map`) and `src/lib/StopList.svelte`

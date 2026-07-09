@@ -1038,4 +1038,18 @@
     .stop-title { font-size: 2.625rem; }  /* 42px (phone 32px) */
     .plate { height: 256px; }             /* phone 196px */
   }
+
+  /* Short landscape (design handoff: "Sticky footer in landscape"): on a
+     landscape phone the sticky footer was obscuring much of the ~390px-tall
+     viewport. Minimise it — hide the decorative proximity line, drop the
+     Next-stop button 58→46px (still ≥44px hit target; the back square is
+     46px already), tighten padding, keep the label on one line. Portrait
+     phone and tablet footers are unchanged. Must stay after the blocks
+     above (equal-specificity overrides; source order wins). */
+  @media (max-height: 550px) and (orientation: landscape) {
+    .proximity-strip { display: none; }
+    .nav-row { padding: 10px 16px 10px; }
+    .nav-next { height: 46px; }
+    .nav-next-label { white-space: nowrap; }
+  }
 </style>
