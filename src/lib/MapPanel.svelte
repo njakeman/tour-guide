@@ -65,9 +65,12 @@
 
 <script lang="ts">
   import { onMount } from 'svelte'
-  import type { Map as MaplibreMap, Marker as MaplibreMarker } from 'maplibre-gl'
+  import { get } from 'svelte/store'
+  import type { Map as MaplibreMap, Marker as MaplibreMarker, StyleSpecification } from 'maplibre-gl'
   import type { TourRoute, TourStop } from './types'
   import { geolocation, haversineDistance, type GeoPosition } from './geo/store'
+  import { online } from './offline/store'
+  import { buildMapStyle, mapZoomRange, isFatalMapError } from './map/style'
   import {
     createStopMarkerElement,
     createStopPopupElement,
@@ -209,9 +212,20 @@
     // the SVG schematic doubles as the loading state.
     async function init() {
       try {
-        const [maplibreModule, pmtilesModule] = await Promise.all([
+        // OpenFreeMap base layer under the tour raster — network-only tiles,
+        // so only merged in when we're connected. Decided once per map init
+        // (no live re-style on connectivity change — future work). The style
+        // JSON rides its own precached async chunk; a failed chunk fetch
+        // (cold cache + a lying navigator.onLine) degrades to pmtiles-only.
+        const wantBase = get(online)
+        const [maplibreModule, pmtilesModule, baseStyle] = await Promise.all([
           import('maplibre-gl'),
           import('pmtiles'),
+          wantBase
+            ? import('./map/fieldworks-minimal.style.json')
+                .then((m) => m.default as unknown as StyleSpecification)
+                .catch(() => null)
+            : Promise.resolve(null),
         ])
         await import('maplibre-gl/dist/maplibre-gl.css')
         if (disposed || !mapEl) return
@@ -227,28 +241,10 @@
 
         mapInstance = new maplibregl.Map({
           container: mapEl,
-          style: {
-            version: 8,
-            sources: {
-              basemap: {
-                type: 'raster',
-                url: `pmtiles://${basemap}`,
-                tileSize: 256,
-                attribution: '© Environment Agency, © OpenStreetMap contributors',
-              },
-            },
-            layers: [
-              {
-                id: 'basemap',
-                type: 'raster',
-                source: 'basemap',
-              },
-            ],
-          },
+          style: buildMapStyle(basemap, baseStyle),
           center,
           zoom,
-          minZoom: 11,
-          maxZoom: 17,
+          ...mapZoomRange(baseStyle != null),
           attributionControl: { compact: true },
         })
 
@@ -344,9 +340,12 @@
         // Async failures (basemap 404, offline with a cold cache, corrupt
         // tiles) surface here, not in the constructor. Fall back to the SVG
         // only before first render; ignore transient tile errors afterwards.
-        mapInstance.on('error', () => {
+        // With the OFM base merged in, only errors attributable to the tour
+        // basemap source are fatal — a flaky OpenFreeMap must never take
+        // down a healthy pmtiles map (see isFatalMapError).
+        mapInstance.on('error', (e) => {
           if (disposed) return
-          if (!mapReady) fail()
+          if (!mapReady && isFatalMapError(e, baseStyle != null)) fail()
         })
       } catch {
         fail()
