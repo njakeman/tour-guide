@@ -108,6 +108,13 @@ describe('TourLibrary — responsive master–detail Landing', () => {
     expect(body.getAttribute('data-phone-view')).toBe('route')
   })
 
+  it('mirrors the view prop on the screen root (landscape shell hook)', () => {
+    // The landscape-phone @media block selects the status bar / app header
+    // (siblings BEFORE .tl-body) per view via .screen[data-view]
+    const { container } = render(TourLibrary, { props: landingProps('route') })
+    expect(container.querySelector('.screen')!.getAttribute('data-view')).toBe('route')
+  })
+
   it('marks the selected card and leaves the others idle', () => {
     const { container } = render(TourLibrary, { props: landingProps() })
     expect(container.querySelector('.tour-card[data-tour="a"]')!.getAttribute('data-state')).toBe('selected')

@@ -415,4 +415,115 @@
     .ov-title { font-size: 2.5rem; }   /* 40px */
     .ov-back { display: none; }         /* rail is always visible on tablet */
   }
+
+  /* ── Landscape phone (design handoff "Landscape Concepts", 3b) ──────────
+     Wide but short: two panes side by side — header + full-height map on
+     the left, itinerary (label, chips, scrolling stop list, CTA) on the
+     right. Same DOM re-laid by grid + display:contents; the Landing shell
+     (TourLibrary) hides its own chrome in this band and floats the theme
+     toggle top-right over this pane. MUST stay the LAST block. */
+  @media (min-width: 720px) and (max-height: 559.98px) {
+    .tour-overview {
+      display: grid;
+      grid-template-columns: 436px 1fr;
+      grid-template-rows: auto auto 1fr auto;
+      grid-template-areas:
+        'hero label'
+        'map  meta'
+        'map  stops'
+        'map  footer';
+    }
+    /* Right-pane backdrop (grid items paint over the pseudo-element) */
+    .tour-overview::before {
+      content: '';
+      grid-column: 2 / 3;
+      grid-row: 1 / -1;
+      background: var(--surface-3);
+      border-left: 1px solid var(--border-2);
+    }
+    .ov-scroll,
+    .ov-content {
+      display: contents;
+    }
+    /* Hero collapses to a header row: back chip + eyebrow/title on-surface */
+    .ov-hero {
+      grid-area: hero;
+      height: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 16px;
+      overflow: visible;
+    }
+    .ov-hero-grad,
+    .ov-hero-svg,
+    .ov-hero-scrim,
+    .ov-dist-badge {
+      display: none;
+    }
+    .ov-back {
+      position: static;
+      width: 42px;
+      height: 42px;
+      flex: none;
+    }
+    .ov-hero-text {
+      position: static;
+      flex: 1;
+      min-width: 0;
+    }
+    .ov-eyebrow {
+      color: var(--eyebrow);
+      text-shadow: none;
+    }
+    .ov-title {
+      font-size: 1.375rem;
+      color: var(--text);
+      text-shadow: none;
+      margin: 2px 0 0;
+    }
+    .ov-desc { display: none; }
+    .map-wrap {
+      grid-area: map;
+      aspect-ratio: auto;
+      min-height: 0;
+      margin: 0 14px 14px;
+    }
+    /* "The route" is promoted to the itinerary pane heading */
+    .ov-route-label {
+      grid-area: label;
+      font-family: var(--font-serif);
+      font-weight: 600;
+      font-size: 1.3125rem;
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--text);
+      /* right padding clears the floating theme toggle */
+      padding: 16px 72px 0 16px;
+      margin: 0;
+    }
+    .ov-meta {
+      grid-area: meta;
+      padding: 0 16px;
+      margin-top: 11px;
+    }
+    .ov-stops {
+      grid-area: stops;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      min-height: 0;
+      padding: 10px 16px 0;
+    }
+    .ov-footer {
+      grid-area: footer;
+      border-top: 0;
+      background: none;
+      padding: 11px 16px 16px;
+    }
+    .ov-save {
+      width: 52px;
+      height: 52px;
+    }
+    .start-tour { height: 52px; }
+  }
 </style>

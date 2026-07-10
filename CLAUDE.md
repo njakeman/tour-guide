@@ -132,6 +132,39 @@ distance-sorted nearest-first; no filter buttons) and
 - **Tablet (wide AND tall)** — master–detail: 472px rail + overview both
   visible; the phone's standalone Route page is **folded into the overview**, so
   there is no separate Route view at tablet size. The back chip is hidden.
+- **Landscape phone shell** (`min-width: 720px and max-height: 559.98px`,
+  design handoff "Landscape Concepts" 3a/3b) — the same DOM re-laid by CSS,
+  keyed off `data-view={view}` on the `.screen` root (needed because the
+  status bar / app header are siblings *before* `.tl-body`, whose
+  `data-phone-view` CSS can't reach them). This band is a subset of the phone
+  band, so the phone pane-swap rules still pick the visible pane:
+  - **3a Tours home** (`[data-view='library']`): grid `258px 1fr` — left
+    identity column (status line, wordmark, "Tours" head, theme toggle at the
+    bottom; backdrop painted by `.screen::before`) and the card list as
+    **one finger-scrollable vertical column of equal row-cards** (amended
+    handoff: no featured/secondary split). Every card is a thumbnail-left
+    row; any selected (gradient-header) variant is flattened to the row
+    look. The **nearest card is `:first-child`** — the list is always
+    nearest-first — and gets the accent highlight (148px thumb, 22px title,
+    bottom-anchored chips) regardless of selection; other rows get a 128px
+    thumb, centred content, and a `::after` chevron. `.card-dist` (a
+    distance eyebrow in the idle-card DOM, `display:none` at every other
+    size) shows here on each row. Deviations: the design's inline Start CTA
+    and "Nearest" thumb caption are omitted — the card is the tap target,
+    Start lives on the overview.
+  - **3b Route overview** (`[data-view='route']`): TourLibrary just strips
+    its own chrome (status bar/wordmark hidden, `.app-header` →
+    `display: contents`) and floats the theme toggle absolute top-right;
+    **RouteMap owns the layout** — its own landscape block (same condition,
+    last in its `<style>`) re-grids `.tour-overview` to `436px 1fr`
+    (`hero`/`map` left; `label`/`meta`/`stops`/`footer` right, backdrop via
+    `::before`): the hero collapses to a back-chip + title header row
+    (gradient/scrim/dist-badge hidden, on-surface text colours),
+    the map fills the left column (`aspect-ratio: auto`), `.ov-desc` is
+    hidden, "The route" label becomes the serif pane heading (its right
+    padding clears the floating toggle), the stop list is the only scrolling
+    region, and the footer docks bottom-right (save square kept — it's the
+    only offline-save affordance — with a 52px CTA).
 
 `RouteMap.svelte` is **not a full screen** — it is the overview pane content
 (`.tour-overview[data-tour]`: hero, description, meta chips, `MapPanel`,
@@ -337,4 +370,4 @@ Run with vitest (`svelteTesting()` in `vitest.config.ts` makes Svelte 5 componen
 - `src/lib/pwa/workbox-config.test.ts` — guards the SW rules (tour media excluded from precache, pmtiles rule is Range-aware CacheFirst)
 - `src/lib/TourStop.test.ts`, `src/lib/TourLibrary.test.ts`, `src/lib/RouteMap.test.ts` — component tests (@testing-library/svelte): proximity footer states incl. stale-fix handling, nav edges, SVG map fallback, the wordmark home button, and the responsive one-DOM layouts. For the Landing: rail (`.tour-list`) + overview (`.tour-overview`) present together, `data-phone-view` follows the `view` prop, selected-vs-idle card `data-state`. For RouteMap-as-overview: `.start-tour[data-tour]` hook + Start/Resume CTA text and the `.tour-overview[data-tour]` root. For TourStop: the phone hero `MapPanel` and the rail `MapPanel` both mount with distinct `id`s (`tour-map-hero` / `tour-map`) and accessible names, since jsdom has no WebGL so both fall back to the SVG schematic — the live map, its markers (current-stop pin, user-location dot), and the recentring behaviour are verified manually in the browser instead. TourStop also covers the lightbox (open from body image and hero button, close via Escape/button/backdrop, image click does not close).
 
-Expected baseline: **122 tests pass, 0 errors** from `npm run check`.
+Expected baseline: **123 tests pass, 0 errors** from `npm run check`.

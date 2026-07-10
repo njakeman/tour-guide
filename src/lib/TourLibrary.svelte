@@ -3,15 +3,21 @@
   ONE component tree, a single 720px viewport breakpoint, nothing added or
   removed between sizes.
 
-  - < 720px (phone): paginated. The card list (rail) is the library page; tapping
-    a card opens the tour overview (the "route" view) as a separate page.
-  - ≥ 720px (tablet landscape): master–detail. A persistent left rail holds the
-    "Tours" title, filters, and the card list; the selected tour's overview
-    (RouteMap) fills the right. There is no standalone Route page — it is folded
-    into the overview.
+  - Phone (narrow OR short): paginated. The card list (rail) is the library
+    page; tapping a card opens the tour overview (the "route" view) as a
+    separate page.
+  - Tablet (≥720px wide AND ≥560px tall): master–detail. A persistent left
+    rail holds the "Tours" title and the card list; the selected tour's
+    overview (RouteMap) fills the right. There is no standalone Route page —
+    it is folded into the overview.
+  - Landscape phone (≥720px wide AND <560px tall, handoff "Landscape
+    Concepts" 3a/3b): library = identity column + card gallery; route =
+    RouteMap's own two-pane layout with this shell's chrome stripped. The
+    root's data-view attribute is the CSS hook for both.
 
   `view` ('library' | 'route') drives which pane shows on phone via
-  data-phone-view; ≥ 720px both panes are always visible (tab state is ignored).
+  data-phone-view; at tablet size both panes are always visible (tab state is
+  ignored).
 -->
 <script lang="ts">
   import { onMount, untrack } from 'svelte'
@@ -120,7 +126,7 @@
   }
 </script>
 
-<div class="screen landing">
+<div class="screen landing" data-view={view}>
   <!-- Status bar -->
   <div class="status-bar">
     <span class="status-right">
@@ -213,6 +219,8 @@
                 </svg>
               </div>
               <div class="card-body card-body--compact">
+                <!-- Landscape-only distance eyebrow (display:none elsewhere) -->
+                {#if isFinite(dist)}<span class="card-dist">{fmtDistance(dist)} away</span>{/if}
                 <h2 class="card-title card-title--compact">{route.name}</h2>
                 <p class="card-desc card-desc--compact">{route.description}</p>
                 <div class="card-meta">
@@ -414,6 +422,9 @@
   .card-title--compact { font-size: 1.125rem; }
   .card-desc--compact { font-size: 0.78125rem; }
 
+  /* Distance eyebrow on idle cards — landscape-phone only (see below) */
+  .card-dist { display: none; }
+
   /* Selected: full-width with gradient header */
   .tour-card[data-state='selected'] {
     display: block;
@@ -521,6 +532,154 @@
       flex: none;
       border-right: 1px solid var(--border-2);
       background: var(--surface-3);
+    }
+  }
+
+  /* ── Landscape phone shell (design handoff "Landscape Concepts", 3a/3b) ──
+     Wide but short (a phone on its side): the same DOM re-laid by CSS.
+     This band is a subset of the phone block above, so the phone pane-swap
+     rules still decide which pane shows; everything here is scoped by the
+     root [data-view] hook. MUST stay the LAST block in this style. */
+  @media (min-width: 720px) and (max-height: 559.98px) {
+    /* 3a — Tours home: 258px identity column + full-height card gallery */
+    .screen[data-view='library'] {
+      max-width: none;
+      display: grid;
+      grid-template-columns: 258px 1fr;
+      grid-template-rows: auto auto auto 1fr auto;
+      grid-template-areas:
+        'status list'
+        'brand  list'
+        'head   list'
+        '.      list'
+        'toggle list';
+    }
+    /* Left-column backdrop (grid items paint over the pseudo-element) */
+    .screen[data-view='library']::before {
+      content: '';
+      grid-row: 1 / -1;
+      grid-column: 1 / 2;
+      background: var(--surface-3);
+      border-right: 1px solid var(--border-2);
+    }
+    .screen[data-view='library'] .app-header,
+    .screen[data-view='library'] .tl-body,
+    .screen[data-view='library'] .tl-rail {
+      display: contents;
+    }
+    /* display:contents promotes every child — hide the ones with no slot */
+    .screen[data-view='library'] .fieldguide-eyebrow,
+    .screen[data-view='library'] .header-spacer {
+      display: none;
+    }
+    .screen[data-view='library'] .status-bar {
+      grid-area: status;
+      justify-content: flex-start;
+      padding: 16px 20px 0;
+    }
+    .screen[data-view='library'] .wordmark {
+      grid-area: brand;
+      margin: 18px 20px 0;
+      justify-self: start;
+    }
+    .screen[data-view='library'] .rail-head {
+      grid-area: head;
+      padding: 20px 20px 0;
+    }
+    .screen[data-view='library'] .tours-title { font-size: 2.5rem; }
+    .screen[data-view='library'] .app-header :global(button.toggle) {
+      grid-area: toggle;
+      justify-self: end;
+      margin: 0 20px 16px 0;
+    }
+    /* One finger-scrollable column of equal landscape row-cards */
+    .screen[data-view='library'] .tour-list {
+      grid-area: list;
+      padding: 14px 16px;
+      gap: 11px;
+    }
+    /* Flatten the selected variant (gradient header) to the row look —
+       every card is a thumbnail-left row in this layout */
+    .screen[data-view='library'] .tour-card[data-state='selected'] {
+      display: flex;
+    }
+    .screen[data-view='library'] .tour-card[data-state='selected'] .card-header {
+      height: auto;
+      flex: none;
+    }
+    /* Nearest card (first — the list is always distance-sorted) is the
+       highlighted row, regardless of which card is selected */
+    .screen[data-view='library'] .tour-card:first-child {
+      border: 1.5px solid var(--accent);
+      box-shadow: 0 8px 22px -14px color-mix(in srgb, var(--accent) 50%, transparent);
+      min-height: 160px;
+    }
+    .screen[data-view='library'] .tour-card:first-child .card-thumb,
+    .screen[data-view='library'] .tour-card:first-child .card-header {
+      width: 148px;
+    }
+    .screen[data-view='library'] .tour-card:first-child .card-title {
+      font-size: 1.375rem;
+    }
+    .screen[data-view='library'] .tour-card:first-child .card-body {
+      display: flex;
+      flex-direction: column;
+      padding: 13px 16px;
+    }
+    /* Bottom-anchor the nearest card's chips, like the design's action row */
+    .screen[data-view='library'] .tour-card:first-child .card-meta {
+      margin-top: auto;
+      padding-top: 11px;
+    }
+    /* Other rows: 128px thumbnail, centred content, chevron affordance */
+    .screen[data-view='library'] .tour-card:not(:first-child) {
+      position: relative;
+    }
+    .screen[data-view='library'] .tour-card:not(:first-child)::after {
+      content: '›';
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      font-size: 1rem;
+      color: var(--muted);
+    }
+    .screen[data-view='library'] .tour-card:not(:first-child) .card-thumb,
+    .screen[data-view='library'] .tour-card:not(:first-child) .card-header {
+      width: 128px;
+    }
+    .screen[data-view='library'] .tour-card:not(:first-child) .card-body {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    /* Distance eyebrow (hidden at every other size) */
+    .screen[data-view='library'] .card-dist {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.5625rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--eyebrow);
+      margin-bottom: 3px;
+    }
+
+    /* 3b — Route overview: strip the shell chrome; RouteMap owns the layout */
+    .screen[data-view='route'] {
+      max-width: none;
+      position: relative;
+    }
+    .screen[data-view='route'] .status-bar,
+    .screen[data-view='route'] .wordmark,
+    .screen[data-view='route'] .fieldguide-eyebrow,
+    .screen[data-view='route'] .header-spacer {
+      display: none;
+    }
+    .screen[data-view='route'] .app-header { display: contents; }
+    .screen[data-view='route'] .app-header :global(button.toggle) {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 5;
     }
   }
 </style>
