@@ -388,6 +388,10 @@
 
   /* Shared card frame */
   .tour-card {
+    /* flex:none is load-bearing: the card is a flex child of the scrollable
+       .tour-list column and overflow:hidden zeroes its automatic minimum
+       size — without this, cards squish to fit instead of scrolling */
+    flex: none;
     border-radius: 16px;
     overflow: hidden;
     background: var(--surface);

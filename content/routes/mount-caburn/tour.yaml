@@ -1,0 +1,14 @@
+route_name: "Mount Caburn"
+subtitle: "Iron Age Hillfort · Ouse Valley"
+description: "A steep-sided fort above the Ouse at Lewes — a single rampart wrapped round a summit riddled with more than a hundred pits. A short, sharp climb from Glynde with views the length of the valley."
+icon: "⛰️"
+total_distance: "1.8 km"
+duration: "~60 min"
+map:
+  basemap: "/tours/mount-caburn/caburn.pmtiles"  # local PMTiles raster basemap
+  center: [0.05099, 50.8619]   # [lng, lat] — map centre
+  zoom: 14                    # initial zoom (tileset covers zoom levels 12–17)
+stops:
+  - "caburn-coombe"
+  - "caburn-ramparts"
+  - "caburn-pits"

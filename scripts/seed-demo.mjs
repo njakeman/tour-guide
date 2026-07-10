@@ -12,6 +12,7 @@
  * Routes seeded (all output gitignored) — see the ROUTES table at the end:
  *   cissbury-ring     — heroes, inline image, audio, video, 3D model
  *   wolstonbury-hill  — heroes, inline image, audio, 3D model
+ *   mount-caburn      — heroes, inline image, audio
  *
  * Zero npm dependencies: uses only Node built-ins (fs, zlib, path).
  * Idempotent: skips files that already exist.
@@ -369,6 +370,8 @@ console.log('\nfieldWorks demo seed\n')
 const heroOpts = { bg: '#e8dcc8', stroke: '#9a8c5d', band: '#cdb585', textCol: '#26241f' }
 // Greener downland palette for Wolstonbury Hill so the two demos read apart
 const downlandOpts = { bg: '#dde4c8', stroke: '#7d8f5a', band: '#b8c98e', textCol: '#232619' }
+// Cooler chalk-and-river palette for Mount Caburn above the Ouse
+const caburnOpts = { bg: '#dfe0d6', stroke: '#7f8a80', band: '#b7c2b0', textCol: '#1f2422' }
 
 const ROUTES = [
   { dir: 'cissbury-ring', files: [
@@ -386,6 +389,13 @@ const ROUTES = [
     { name: 'orchid-bank.png',       make: () => makePNG(800, 500, { ...downlandOpts, label: 'ORCHID BANK', sublabel: 'inline image demo' }) },
     { name: 'wolstonbury-intro.mp3', make: () => Buffer.from(SILENT_MP3_B64, 'base64') },
     { name: 'enclosure.glb',         make: () => makeGLB() },
+  ]},
+  { dir: 'mount-caburn', files: [
+    { name: 'coombe.png',        make: () => makePNG(1200, 800, { ...caburnOpts, label: 'THE GLYNDE ASCENT', sublabel: 'TQ 457 088' }) },
+    { name: 'rampart-crest.png', make: () => makePNG(1200, 800, { ...caburnOpts, label: 'THE GREAT RAMPART', sublabel: 'TQ 445 089' }) },
+    { name: 'pit-field.png',     make: () => makePNG(1200, 800, { ...caburnOpts, label: 'THE PIT FIELD', sublabel: 'TQ 444 089 · 146m AOD' }) },
+    { name: 'ouse-view.png',     make: () => makePNG(800, 500, { ...caburnOpts, label: 'THE OUSE VALLEY', sublabel: 'inline image demo' }) },
+    { name: 'caburn-intro.mp3',  make: () => Buffer.from(SILENT_MP3_B64, 'base64') },
   ]},
 ]
 
