@@ -28,6 +28,12 @@ The path breaches the rampart at its north-east gap. Step onto the bank crest an
 
 > "One bank, one ditch, one hectare — and yet more digging went into this summit than almost any other in the south."
 
+## The Earthworks in 3D
+
+Explore a terrain model of the enclosure — rotate it to see how the bank and internal ditch sit on the summit dome.
+
+![Enclosure earthworks · terrain model](/tours/mount-caburn/caburn.glb)
+
 ## Two Walls in One
 
 Run your eye along the inner face of the bank. The subtle change in pitch halfway up is the join between the Iron Age dump and the later refacing — two societies, centuries apart, agreeing the line still mattered.

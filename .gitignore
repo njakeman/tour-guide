@@ -16,6 +16,7 @@ dist/
 !/public/tours/wolstonbury-hill/wolstonbury.pmtiles
 /public/tours/mount-caburn/*
 !/public/tours/mount-caburn/caburn.pmtiles
+!/public/tours/mount-caburn/caburn.glb
 .env
 .env.local
 .env.*.local
