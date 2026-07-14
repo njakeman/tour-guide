@@ -14,6 +14,7 @@ dist/
 !/public/tours/cissbury-ring/cissbury.pmtiles
 /public/tours/wolstonbury-hill/*
 !/public/tours/wolstonbury-hill/wolstonbury.pmtiles
+!/public/tours/wolstonbury-hill/palstave.glb
 /public/tours/mount-caburn/*
 !/public/tours/mount-caburn/caburn.pmtiles
 !/public/tours/mount-caburn/caburn.glb
