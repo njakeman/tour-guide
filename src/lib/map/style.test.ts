@@ -4,6 +4,7 @@ import {
   buildMapStyle,
   mapZoomRange,
   isFatalMapError,
+  isBasemapRenderableEvent,
   BASEMAP_SOURCE_ID,
   TOUR_BASEMAP_ATTRIBUTION,
   BASE_STYLE_ATTRIBUTION,
@@ -119,5 +120,74 @@ describe('isFatalMapError', () => {
     // Sprite failures / validation errors carry no sourceId — fail open
     expect(isFatalMapError({ error: new TypeError('Failed to fetch') }, true)).toBe(false)
     expect(isFatalMapError(undefined, true)).toBe(false)
+  })
+})
+
+describe('isBasemapRenderableEvent', () => {
+  it('true for a loaded tour-basemap sourcedata event', () => {
+    expect(
+      isBasemapRenderableEvent({
+        dataType: 'source',
+        sourceId: BASEMAP_SOURCE_ID,
+        isSourceLoaded: true,
+      })
+    ).toBe(true)
+  })
+
+  it('true regardless of sourceDataType (metadata or content)', () => {
+    expect(
+      isBasemapRenderableEvent({
+        dataType: 'source',
+        sourceId: BASEMAP_SOURCE_ID,
+        isSourceLoaded: true,
+        sourceDataType: 'metadata',
+      })
+    ).toBe(true)
+    expect(
+      isBasemapRenderableEvent({
+        dataType: 'source',
+        sourceId: BASEMAP_SOURCE_ID,
+        isSourceLoaded: true,
+        sourceDataType: 'content',
+      })
+    ).toBe(true)
+  })
+
+  it('false while the basemap source is still loading', () => {
+    expect(
+      isBasemapRenderableEvent({
+        dataType: 'source',
+        sourceId: BASEMAP_SOURCE_ID,
+        isSourceLoaded: false,
+      })
+    ).toBe(false)
+    expect(
+      isBasemapRenderableEvent({ dataType: 'source', sourceId: BASEMAP_SOURCE_ID })
+    ).toBe(false)
+  })
+
+  it('false for OpenFreeMap sources — they must never trigger the reveal', () => {
+    for (const sourceId of ['openmaptiles', 'ne2_shaded']) {
+      expect(
+        isBasemapRenderableEvent({ dataType: 'source', sourceId, isSourceLoaded: true })
+      ).toBe(false)
+    }
+  })
+
+  it('false for style-scoped data events', () => {
+    expect(isBasemapRenderableEvent({ dataType: 'style' })).toBe(false)
+    expect(
+      isBasemapRenderableEvent({
+        dataType: 'style',
+        sourceId: BASEMAP_SOURCE_ID,
+        isSourceLoaded: true,
+      })
+    ).toBe(false)
+  })
+
+  it('false for malformed/absent events', () => {
+    expect(isBasemapRenderableEvent(null)).toBe(false)
+    expect(isBasemapRenderableEvent(undefined)).toBe(false)
+    expect(isBasemapRenderableEvent({})).toBe(false)
   })
 })

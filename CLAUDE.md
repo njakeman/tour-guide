@@ -198,7 +198,17 @@ instantiates MapLibre at all — no wasted WebGL context.
 - Falls back to the inline SVG schematic when there is no basemap, WebGL is
   unavailable, MapLibre throws on init, **or an async `map.on('error')` fires
   before first render** (basemap 404, offline with a cold cache). The SVG also
-  doubles as the loading state until the map's `load` event.
+  doubles as the loading state until the map **reveals** — first-of(style
+  `load`, tour-basemap `sourcedata` with `isSourceLoaded` → one `render`).
+  The second signal exists because `load` waits on **every** style resource
+  incl. the OFM sprite/glyphs; on iOS PWAs `navigator.onLine` often lies and
+  hung (not failed) OFM fetches would otherwise hide the fully-cached local
+  map behind the skeleton indefinitely (`isBasemapRenderableEvent` in
+  `src/lib/map/style.ts`). All on-map setup (stop markers, popup wiring,
+  walker locator, attribution collapse) runs in the shared idempotent
+  `reveal()`, not in the `load` handler — markers are DOM overlays and don't
+  need style load. Deliberately no watchdog timeout: if the basemap source
+  itself never loads, a blank canvas is worse than the loading SVG.
 - **OpenFreeMap base layer** (`src/lib/map/style.ts` + `src/lib/map/fieldworks-minimal.style.json`):
   when the `online` store reports connectivity at map init, the style is the
   OFM vector base (tiles/sprites/glyphs from tiles.openfreemap.org — network-
@@ -222,9 +232,11 @@ instantiates MapLibre at all — no wasted WebGL context.
   (`e.sourceId === 'basemap'`) once the base style is merged — a flaky
   OpenFreeMap must never take down a healthy pmtiles map. Sprite failures
   carry NO `sourceId` (network-down sprite errors are bare TypeErrors), so
-  unattributed errors fail open; that is safe because a dead OFM cannot wedge
-  MapLibre's `load` event. pmtiles-only mode keeps the original
-  any-error-is-fatal behaviour.
+  unattributed errors fail open; that is safe because the reveal is gated on
+  the basemap source, not on `load` (which a dead or hung OFM CAN wedge — see
+  above). pmtiles-only mode keeps the original any-error-is-fatal behaviour.
+  Future work: SW runtime caching for OFM sprites/glyphs; live re-style on
+  connectivity change.
 - Use `onMount` (not `$effect`) for map lifecycle to avoid `effect_update_depth_exceeded`.
 - **One route per mount:** MapPanel's map lifecycle (and RouteMap's offline-cache
   state) is `onMount`-scoped to the route it mounted with. Any call site where

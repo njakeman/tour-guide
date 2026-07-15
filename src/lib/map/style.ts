@@ -99,7 +99,7 @@ export function mapZoomRange(hasBaseStyle: boolean): { minZoom: number; maxZoom:
 }
 
 /**
- * Should a pre-`load` map 'error' event drop the panel to the SVG fallback?
+ * Should a pre-reveal map 'error' event drop the panel to the SVG fallback?
  *
  * pmtiles-only: yes, always — the original behaviour (basemap 404, offline
  * with a cold cache).
@@ -108,12 +108,36 @@ export function mapZoomRange(hasBaseStyle: boolean): { minZoom: number; maxZoom:
  * Source-scoped failures (TileJSON, tile, glyph) carry `sourceId`; OpenFreeMap
  * failures must never take down a healthy pmtiles map. Sprite failures carry
  * NO sourceId (and a network-down sprite error is a bare TypeError with no
- * URL), so unattributed errors fail open — safe, because a dead OFM cannot
- * wedge MapLibre's `load` event: if the pmtiles source is healthy, `load`
- * fires and the loading SVG clears; if it is broken, its error arrives with
- * `sourceId: 'basemap'` and we fall back as before.
+ * URL), so unattributed errors fail open — safe, because the reveal is gated
+ * on the basemap source (isBasemapRenderableEvent), not on `load`: a dead or
+ * hung OFM CAN wedge `load` (Style.loaded() waits on every source and the
+ * sprite), but the healthy pmtiles source still reveals via `sourcedata`; if
+ * it is broken, its error arrives with `sourceId: 'basemap'` and we fall back
+ * as before.
  */
 export function isFatalMapError(e: unknown, hasBaseStyle: boolean): boolean {
   if (!hasBaseStyle) return true
   return (e as { sourceId?: string } | null)?.sourceId === BASEMAP_SOURCE_ID
+}
+
+/**
+ * Is this map event the "tour basemap is renderable" reveal signal?
+ *
+ * `sourcedata` is per-source: MapLibre attaches `isSourceLoaded` from that
+ * source's own TileManager, so sprite/glyph/other-source fetches play no
+ * part. `isSourceLoaded: true` means the TileJSON arrived and every in-view
+ * tile is loaded/errored — the tour raster is renderable even while
+ * OpenFreeMap requests hang (which would block `load` indefinitely).
+ */
+export function isBasemapRenderableEvent(e: unknown): boolean {
+  const ev = e as
+    | { dataType?: string; sourceId?: string; isSourceLoaded?: boolean }
+    | null
+    | undefined
+  return (
+    !!ev &&
+    ev.dataType === 'source' &&
+    ev.sourceId === BASEMAP_SOURCE_ID &&
+    ev.isSourceLoaded === true
+  )
 }

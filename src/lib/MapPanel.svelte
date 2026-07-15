@@ -70,7 +70,12 @@
   import type { TourRoute, TourStop } from './types'
   import { geolocation, haversineDistance, type GeoPosition } from './geo/store'
   import { online } from './offline/store'
-  import { buildMapStyle, mapZoomRange, isFatalMapError } from './map/style'
+  import {
+    buildMapStyle,
+    mapZoomRange,
+    isFatalMapError,
+    isBasemapRenderableEvent,
+  } from './map/style'
   import {
     createStopMarkerElement,
     createStopPopupElement,
@@ -253,8 +258,13 @@
           attributionControl: { compact: true },
         })
 
-        mapInstance.on('load', () => {
-          if (disposed || !mapInstance) return
+        // Reveal the map (drop the SVG loading state) and wire up everything
+        // that lives on top of it. Idempotent — called by whichever signal
+        // wins: full style `load`, or the tour basemap source becoming
+        // renderable (see below). Markers and the locator are DOM overlays
+        // (Marker.addTo needs no style load), so they're safe to add early.
+        const reveal = () => {
+          if (mapReady || disposed || !mapInstance) return
           mapReady = true
 
           // MapLibre force-expands the compact attribution on load (its
@@ -349,7 +359,25 @@
               }
             })
           }
-        })
+        }
+
+        // Happy path / pmtiles-only: the full style `load` reveals as before.
+        mapInstance.on('load', reveal)
+        // OFM-proof path: reveal as soon as the tour basemap source is
+        // renderable — `sourcedata` is per-source, so hung OpenFreeMap
+        // sprite/glyph/tile fetches (which wedge `load` indefinitely, e.g. on
+        // iOS where navigator.onLine lies about stalled connectivity) can't
+        // hold the local pmtiles map hostage. Wait for one `render` after it
+        // so the frame is actually painted before the skeleton drops. No
+        // watchdog timeout on top: any hang that leaves the basemap source
+        // itself unloaded also leaves nothing worth revealing — a blank
+        // canvas is worse than the loading SVG.
+        const onSourceData = (e: unknown) => {
+          if (!isBasemapRenderableEvent(e) || !mapInstance) return
+          mapInstance.off('sourcedata', onSourceData)
+          mapInstance.once('render', reveal)
+        }
+        mapInstance.on('sourcedata', onSourceData)
         // Async failures (basemap 404, offline with a cold cache, corrupt
         // tiles) surface here, not in the constructor. Fall back to the SVG
         // only before first render; ignore transient tile errors afterwards.
