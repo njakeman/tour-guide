@@ -4,10 +4,18 @@
   import { writable } from 'svelte/store'
   import { routes } from 'virtual:tour-content'
   import type { TourStop } from './lib/types'
-  import { geolocation, createProximityStore, setGeoAccuracyMode } from './lib/geo/store'
+  import {
+    geolocation,
+    createProximityStore,
+    setGeoAccuracyMode,
+    initialBearing,
+  } from './lib/geo/store'
+  import { detectArrival } from './lib/geo/arrival'
+  import { playArrivalChime, vibrateArrival } from './lib/arrive/chime'
   import { parseHash, buildHash, type View } from './lib/router'
   import TourLibrary from './lib/TourLibrary.svelte'
   import TourStopView from './lib/TourStop.svelte'
+  import ArrivalBanner from './lib/ArrivalBanner.svelte'
 
   // ── Routing ──────────────────────────────────────────────────────────────
   const initial = parseHash(window.location.hash)
@@ -122,6 +130,40 @@
   )
   const geoAccuracy = $derived($geolocation.position?.accuracy)
   const geoTimestamp = $derived($geolocation.position?.timestamp)
+  // Bearing from the walker to the current stop (for the footer's "NE ↑")
+  const currentBearing = $derived.by<number | undefined>(() => {
+    const pos = $geolocation.position
+    if (!pos || currentStop?.lat == null || currentStop?.lng == null) return undefined
+    return initialBearing(pos.lat, pos.lng, currentStop.lat, currentStop.lng)
+  })
+
+  // ── Arrival moments ───────────────────────────────────────────────────────
+  // One-shot per stop per session: entering a stop's radius mid-tour chimes,
+  // vibrates, and floats the non-blocking banner. announced.add() inside the
+  // effect is safe — the re-run sees the id in the set and returns null.
+  const announced = new SvelteSet<string>()
+  let arrivalStopId = $state<string | null>(null)
+  const arrivalStop = $derived(
+    arrivalStopId
+      ? currentRoute?.stops.find((s: TourStop) => s.id === arrivalStopId)
+      : undefined
+  )
+
+  $effect(() => {
+    if (view !== 'stop') return
+    const hit = detectArrival(
+      $proximity,
+      currentRoute?.stops ?? [],
+      $geolocation.position?.accuracy,
+      announced
+    )
+    if (hit) {
+      announced.add(hit)
+      arrivalStopId = hit
+      playArrivalChime()
+      vibrateArrival()
+    }
+  })
 </script>
 
 <div id="fw-app">
@@ -153,6 +195,7 @@
         distanceMetres={currentDist}
         accuracy={geoAccuracy}
         fixTimestamp={geoTimestamp}
+        bearingDegrees={currentBearing}
         onPrev={() => goStop(currentStopIndex - 1)}
         onNext={() => goStop(currentStopIndex + 1)}
         onBack={goRoute}
@@ -162,6 +205,19 @@
 
   {:else}
     <TourLibrary {routes} onSelect={selectRoute} />
+  {/if}
+
+  {#if view === 'stop' && arrivalStop}
+    <ArrivalBanner
+      stopTitle={arrivalStop.title}
+      isCurrent={arrivalStop.id === currentStop?.id}
+      onOpen={() => {
+        const target = arrivalStopId
+        arrivalStopId = null
+        if (target) goStopById(target)
+      }}
+      onDismiss={() => (arrivalStopId = null)}
+    />
   {/if}
 </div>
 

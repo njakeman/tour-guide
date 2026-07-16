@@ -20,8 +20,10 @@ import type {
   RasterSourceSpecification,
   SourceSpecification,
 } from 'maplibre-gl'
+import type { TourRoute } from '../types'
 
 export const BASEMAP_SOURCE_ID = 'basemap'
+export const ROUTE_LINE_SOURCE_ID = 'route-line'
 
 export const TOUR_BASEMAP_ATTRIBUTION =
   '© Environment Agency, © OpenStreetMap contributors'
@@ -118,6 +120,29 @@ export function mapZoomRange(hasBaseStyle: boolean): { minZoom: number; maxZoom:
 export function isFatalMapError(e: unknown, hasBaseStyle: boolean): boolean {
   if (!hasBaseStyle) return true
   return (e as { sourceId?: string } | null)?.sourceId === BASEMAP_SOURCE_ID
+}
+
+/**
+ * GeoJSON for the walking-route line drawn on the live map.
+ *
+ * Prefers the authored path (map.routeLine from content/routes/<id>/
+ * route.geojson); falls back to a straight line through the stops that have
+ * coordinates; null when fewer than 2 points exist (nothing to draw).
+ */
+export function buildRouteLineData(
+  route: TourRoute
+): { type: 'Feature'; properties: Record<string, never>; geometry: { type: 'LineString'; coordinates: [number, number][] } } | null {
+  const coords: [number, number][] =
+    route.map?.routeLine ??
+    route.stops
+      .filter((s) => s.lat != null && s.lng != null)
+      .map((s) => [s.lng as number, s.lat as number])
+  if (coords.length < 2) return null
+  return {
+    type: 'Feature',
+    properties: {},
+    geometry: { type: 'LineString', coordinates: coords },
+  }
 }
 
 /**

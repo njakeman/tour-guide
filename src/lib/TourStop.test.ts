@@ -90,6 +90,22 @@ describe('TourStop — proximity footer', () => {
     expect(screen.queryByText(/arriving/)).toBeNull()
   })
 
+  it('shows the cardinal bearing next to the distance when provided', () => {
+    const { container } = render(TourStopView, {
+      props: {
+        ...baseProps(),
+        distanceMetres: 320,
+        accuracy: 10,
+        fixTimestamp: Date.now(),
+        bearingDegrees: 45,
+      },
+    })
+    const bearing = container.querySelector('.bearing')
+    expect(bearing?.textContent).toContain('NE')
+    // No compass in jsdom → no device-relative arrow
+    expect(container.querySelector('.bearing-arrow')).toBeNull()
+  })
+
   it('marks the distance as stale when the fix is old', () => {
     render(TourStopView, {
       props: {

@@ -43,6 +43,30 @@ export function haversineDistance(
 }
 
 /**
+ * Initial great-circle bearing from point 1 to point 2, in degrees clockwise
+ * from north (0–360). Drives the "320m NE ↗" readout in the stop footer.
+ */
+export function initialBearing(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const φ1 = (lat1 * Math.PI) / 180
+  const φ2 = (lat2 * Math.PI) / 180
+  const Δλ = ((lng2 - lng1) * Math.PI) / 180
+  const y = Math.sin(Δλ) * Math.cos(φ2)
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ)
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360
+}
+
+/** 0–360° → 8-wind cardinal ("N", "NE", …). */
+export function bearingToCardinal(deg: number): string {
+  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+  return dirs[Math.round((((deg % 360) + 360) % 360) / 45) % 8]
+}
+
+/**
  * Returns true when the user is within `radius` metres of a stop,
  * and the GPS accuracy is good enough to be meaningful
  * (accuracy must be < 2× the radius).

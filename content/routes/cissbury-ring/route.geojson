@@ -1,0 +1,15 @@
+{
+  "type": "Feature",
+  "properties": { "name": "Cissbury Ring walking route" },
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [
+      [-0.3796, 50.8556],
+      [-0.3790, 50.8561],
+      [-0.3787, 50.8565],
+      [-0.3783, 50.8567],
+      [-0.3780, 50.8570],
+      [-0.3773, 50.8572]
+    ]
+  }
+}

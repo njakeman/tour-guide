@@ -118,6 +118,31 @@ body {
 .walker-locator .wl-cone      { fill: var(--locator-cone); opacity: 0.32; }
 .walker-locator[data-heading='none'] .wl-cone { display: none; }
 
+/* Compass-driven cone (device facing, live while standing still) reads
+   stronger than the soft GPS travel-heading cone */
+.walker-locator--compass .wl-cone {
+  opacity: 0.55;
+  stroke: var(--locator-cone);
+  stroke-width: 1.2;
+}
+
+/* AR launch button slotted into <model-viewer> (hydrateModels). model-viewer
+   positions the ar-button slot bottom-right and hides it entirely on devices
+   without an AR runtime, so desktop never sees it. */
+.model-ar-button {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin: 0 10px 10px 0;
+  cursor: pointer;
+  backdrop-filter: blur(3px);
+}
+
 .walker-locator .wl-reticle {
   stroke: var(--locator-stroke);
   stroke-width: 1.6;

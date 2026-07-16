@@ -69,12 +69,21 @@
   import type { Map as MaplibreMap, Marker as MaplibreMarker, StyleSpecification } from 'maplibre-gl'
   import type { TourRoute, TourStop } from './types'
   import { geolocation, haversineDistance, type GeoPosition } from './geo/store'
+  import {
+    compassHeading,
+    compassNeedsPermission,
+    requestCompassPermission,
+    hasStoredCompassGrant,
+    compassGranted,
+  } from './geo/orientation'
   import { online } from './offline/store'
   import {
     buildMapStyle,
     mapZoomRange,
     isFatalMapError,
     isBasemapRenderableEvent,
+    buildRouteLineData,
+    ROUTE_LINE_SOURCE_ID,
   } from './map/style'
   import {
     createStopMarkerElement,
@@ -123,6 +132,14 @@
 
   /** Whether to fall back to the SVG (no basemap, no WebGL, or init/load error) */
   let mapFailed = $state(false)
+  /** iOS-only: compass needs a one-tap permission and none is stored */
+  let showCompassEnable = $state(false)
+
+  function enableCompass() {
+    void requestCompassPermission().then((granted) => {
+      if (granted) showCompassEnable = false
+    })
+  }
   /** True once the first frame has rendered — hides the SVG loading state */
   let mapReady = $state(false)
   /** The wrapper we observe for size, and the element MapLibre mounts into */
@@ -165,6 +182,19 @@
   })
 
   onMount(() => {
+    // iOS compass permission: silently re-request when a previous session
+    // granted it (resolves without a prompt); otherwise surface the one-tap
+    // enable button. Android needs neither.
+    if (showUserLocation && compassNeedsPermission()) {
+      if (hasStoredCompassGrant()) {
+        void requestCompassPermission().then((granted) => {
+          if (!granted) showCompassEnable = true
+        })
+      } else {
+        showCompassEnable = true
+      }
+    }
+
     // No basemap configured for this tour — show SVG immediately
     if (!route.map?.basemap) {
       mapFailed = true
@@ -191,6 +221,7 @@
     let removeProtocol: (() => void) | null = null
     let userMarker: MaplibreMarker | null = null
     let unsubscribeGeo: (() => void) | null = null
+    let unsubscribeCompass: (() => void) | null = null
     let stopMarkers: MaplibreMarker[] = []
     let popupMarker: MaplibreMarker | null = null
     let popupFor: { stop: TourStop; label: string; el: HTMLElement } | null = null
@@ -206,6 +237,8 @@
       mapFailed = true
       unsubscribeGeo?.()
       unsubscribeGeo = null
+      unsubscribeCompass?.()
+      unsubscribeCompass = null
       userMarker?.remove()
       userMarker = null
       closePopup()
@@ -264,6 +297,41 @@
         // wins: full style `load`, or the tour basemap source becoming
         // renderable (see below). Markers and the locator are DOM overlays
         // (Marker.addTo needs no style load), so they're safe to add early.
+        // Dashed walking-route line (authored route.geojson, or a line
+        // through the stop pins). Idempotent and error-swallowing: reveal can
+        // fire via the basemap `sourcedata` path while the merged OFM style
+        // is still settling, where addSource/addLayer can throw — the `load`
+        // handler below retries it once the style is fully ready.
+        const ensureRouteLayer = () => {
+          if (disposed || !mapInstance) return
+          if (mapInstance.getSource(ROUTE_LINE_SOURCE_ID)) return
+          const data = buildRouteLineData(route)
+          if (!data) return
+          try {
+            // Token → concrete colour at add time; the per-theme canvas
+            // filter then treats the line like the rest of the map.
+            const routeColor =
+              getComputedStyle(document.documentElement)
+                .getPropertyValue('--map-route')
+                .trim() || '#b7783c'
+            mapInstance.addSource(ROUTE_LINE_SOURCE_ID, { type: 'geojson', data })
+            mapInstance.addLayer({
+              id: ROUTE_LINE_SOURCE_ID,
+              type: 'line',
+              source: ROUTE_LINE_SOURCE_ID,
+              layout: { 'line-cap': 'round', 'line-join': 'round' },
+              paint: {
+                'line-color': routeColor,
+                'line-width': 3,
+                'line-dasharray': [0.1, 2.2],
+                'line-opacity': 0.9,
+              },
+            })
+          } catch {
+            // Style not ready yet — the `load` retry below will land it
+          }
+        }
+
         const reveal = () => {
           if (mapReady || disposed || !mapInstance) return
           mapReady = true
@@ -275,6 +343,8 @@
           mapEl
             ?.querySelector('.maplibregl-ctrl-attrib')
             ?.classList.remove('maplibregl-compact-show')
+
+          ensureRouteLayer()
 
           // Numbered chalk-disc stop markers (design handoff: "Map Markers").
           // Pin tip at the element's bottom-centre → anchor 'bottom'. Tap
@@ -335,6 +405,19 @@
               .setLngLat([0, 0])
               .addTo(mapInstance)
             const marker = userMarker
+            // Cone source preference: device compass (facing, live while
+            // standing) over GPS travel heading (moving only). Map is
+            // north-up — only the cone rotates.
+            let travelHeading: number | null = null
+            let compass: number | null = null
+            const applyHeading = () => {
+              if (compass != null) setWalkerHeading(el, compass, 'compass')
+              else setWalkerHeading(el, travelHeading, 'travel')
+            }
+            unsubscribeCompass = compassHeading.subscribe((value) => {
+              compass = value
+              applyHeading()
+            })
             unsubscribeGeo = geolocation.subscribe((state) => {
               lastFix = state.position
               if (!state.position) {
@@ -343,8 +426,8 @@
               }
               marker.setLngLat([state.position.lng, state.position.lat])
               el.style.display = ''
-              // Map is north-up; only the cone rotates, hidden with no bearing
-              setWalkerHeading(el, state.position.heading ?? null)
+              travelHeading = state.position.heading ?? null
+              applyHeading()
               // Keep an open popup's "· 320m away" eyebrow honest as we move
               if (popupFor && popupFor.stop.lat != null && popupFor.stop.lng != null) {
                 updateStopPopupDistance(
@@ -363,7 +446,11 @@
         }
 
         // Happy path / pmtiles-only: the full style `load` reveals as before.
-        mapInstance.on('load', reveal)
+        // Also the retry point for the route layer if reveal beat the style.
+        mapInstance.on('load', () => {
+          reveal()
+          ensureRouteLayer()
+        })
         // OFM-proof path: reveal as soon as the tour basemap source is
         // renderable — `sourcedata` is per-source, so hung OpenFreeMap
         // sprite/glyph/tile fetches (which wedge `load` indefinitely, e.g. on
@@ -422,6 +509,7 @@
       disposed = true
       observer?.disconnect()
       unsubscribeGeo?.()
+      unsubscribeCompass?.()
       userMarker?.remove()
       closePopup()
       for (const m of stopMarkers) m.remove()
@@ -516,6 +604,13 @@
   {#if route.map?.basemap && !mapFailed}
     <!-- MapLibre GL map — real raster basemap from local PMTiles file -->
     <div class="map-canvas" bind:this={mapEl} role="img" aria-label={ariaLabel}></div>
+  {/if}
+  {#if showCompassEnable && !$compassGranted && !mapFailed && mapReady}
+    <!-- iOS only: DeviceOrientation needs a user-gesture permission before
+         the locator cone can show device facing (Android grants silently) -->
+    <button class="compass-enable" type="button" onclick={enableCompass}>
+      ◮ Enable compass
+    </button>
   {/if}
   {#if mapFailed || !mapReady}
     <!-- SVG schematic: fallback (no basemap, no WebGL, load error) and
@@ -628,5 +723,23 @@
     inset: 0;
     width: 100%;
     height: 100%;
+  }
+
+  /* iOS one-tap compass permission (hidden once granted) */
+  .compass-enable {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    z-index: 3;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 7px 10px;
+    cursor: pointer;
+    backdrop-filter: blur(3px);
   }
 </style>

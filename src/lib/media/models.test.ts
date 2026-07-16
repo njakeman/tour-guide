@@ -49,6 +49,11 @@ describe('hydrateModels', () => {
     expect(viewer!.getAttribute('alt')).toBe('West gate reconstruction')
     expect(viewer!.hasAttribute('camera-controls')).toBe(true)
     expect(viewer!.getAttribute('touch-action')).toBe('pan-y')
+    // AR: enabled with all three mode fallbacks + the branded launch button
+    expect(viewer!.hasAttribute('ar')).toBe(true)
+    expect(viewer!.getAttribute('ar-modes')).toBe('webxr scene-viewer quick-look')
+    const arButton = viewer!.querySelector('button[slot="ar-button"]')
+    expect(arButton?.textContent).toContain('View in your space')
     // Placeholder pieces removed, caption preserved, stub marked hydrated
     expect(el.querySelector('.model-stub')).toBeNull()
     expect(el.querySelector('.model-label')).toBeNull()

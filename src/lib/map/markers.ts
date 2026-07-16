@@ -67,15 +67,25 @@ export function createWalkerLocatorElement(): HTMLElement {
  * Rotate the locator's heading cone to `bearing` (degrees clockwise from
  * north, map assumed north-up), or hide the cone when bearing is null.
  * The reticle and N label never rotate — only the cone turns.
+ *
+ * `source` distinguishes the device compass (which way the phone FACES —
+ * solid, sharper cone via .walker-locator--compass) from the GPS travel
+ * heading (softer cone, only meaningful while moving).
  */
-export function setWalkerHeading(el: HTMLElement, bearing: number | null): void {
+export function setWalkerHeading(
+  el: HTMLElement,
+  bearing: number | null,
+  source: 'compass' | 'travel' = 'travel'
+): void {
   const heading = el.querySelector('.wl-heading')
   if (!heading) return
   if (bearing == null || !Number.isFinite(bearing)) {
     el.dataset.heading = 'none'
+    el.classList.remove('walker-locator--compass')
     return
   }
   el.dataset.heading = String(Math.round(bearing))
+  el.classList.toggle('walker-locator--compass', source === 'compass')
   heading.setAttribute('transform', `rotate(${bearing} 44 44)`)
 }
 

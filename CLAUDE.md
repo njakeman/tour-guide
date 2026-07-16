@@ -72,7 +72,12 @@ Svelte components can't live inside them. Instead one `$effect` (keyed on
 swaps the body in place) runs a hydration pass over `.body-text`:
 
 - **3D models (`src/lib/media/models.ts`):** `.media-model` stubs (build-time
-  output for `.glb`/`.gltf`) are upgraded to `<model-viewer>` elements.
+  output for `.glb`/`.gltf`) are upgraded to `<model-viewer>` elements with
+  **AR enabled** (`ar`, `ar-modes="webxr scene-viewer quick-look"`, branded
+  `slot="ar-button"`): iOS Quick Look auto-generates the USDZ from the GLB
+  on-device (static models only — animations would need an authored
+  `ios-src`), Android uses Scene Viewer, desktops never see the button.
+  AR launch is verified manually on real phones — no emulator covers it.
   `@google/model-viewer` is **dynamically imported only when a stub is
   present** — it (plus bundled three) is a ~1 MB async chunk that stays out of
   the app shell but is precached by the SW, so it works offline. If the import
@@ -310,8 +315,35 @@ and so never initialises. Both blocks exist in the DOM at every width (`.plate
 stop-hero` renders `.hero-map` unconditionally when the stop has coordinates,
 alongside the existing `<img>`/SVG); the `@media` blocks at the end of
 `TourStop.svelte`'s `<style>` toggle which one is visible.
-- A route line drawn directly on the real MapLibre map (rather than only in
-  the SVG fallback) remains a future item; stop markers are done (above).
+**Route line:** every live map draws the walking path as a dashed line layer
+(`ensureRouteLayer` in MapPanel — idempotent, called from `reveal()` and
+retried on `load` since reveal can beat full style readiness). Authors drop a
+GeoJSON LineString as `content/routes/<id>/route.geojson` (bare geometry,
+Feature, or FeatureCollection — `parseRouteLine` in the content plugin
+inlines it as `map.routeLine` at build, malformed files fail the build); a
+tour without one falls back to a line through the stop coordinates
+(`buildRouteLineData` in `src/lib/map/style.ts`). Colour comes from the
+`--map-route` token resolved at add time, so the per-theme canvas filter
+treats it like the rest of the map.
+
+**Compass / device facing (`src/lib/geo/orientation.ts`):** the locator's
+heading cone prefers the device compass (which way the phone FACES — works
+standing still, `.walker-locator--compass` renders it stronger) over the GPS
+travel heading. Subscriber-scoped store like `geolocation`. Platform split:
+Android fires `deviceorientationabsolute` unprompted; iOS needs a one-tap
+`DeviceOrientationEvent.requestPermission()` from a user gesture — MapPanel
+shows an "Enable compass" overlay button, remembers a grant in localStorage
+(`fw-compass`), and re-requests silently on later mounts. The stop footer
+shows "320m NE ↑ to this stop": cardinal always (bearing computed in
+App.svelte via `initialBearing`), the arrow only when the compass is live
+(rotated device-relative: bearing − facing).
+
+**Arrival moments:** entering a stop's radius mid-tour (same `isNearby`
+contract as the footer) chimes (WebAudio, `src/lib/arrive/chime.ts`, silent
+if the AudioContext can't run), vibrates where supported, and floats the
+non-blocking `ArrivalBanner` (auto-dismiss 10s, tap opens the stop).
+Detection is the pure `detectArrival` (`src/lib/geo/arrival.ts`), run from an
+App.svelte `$effect`, one-shot per stop per session.
 
 The `map:` field in `tour.yaml` (optional) carries `basemap`, `center` ([lng,lat]), and `zoom`.
 The content plugin rewrites `map.basemap` through `withBase()` at build time.
@@ -401,4 +433,4 @@ Run with vitest (`svelteTesting()` in `vitest.config.ts` makes Svelte 5 componen
 - `src/lib/pwa/workbox-config.test.ts` — guards the SW rules (tour media excluded from precache, pmtiles rule is Range-aware CacheFirst)
 - `src/lib/TourStop.test.ts`, `src/lib/TourLibrary.test.ts`, `src/lib/RouteMap.test.ts` — component tests (@testing-library/svelte): proximity footer states incl. stale-fix handling, nav edges, SVG map fallback, the wordmark home button, and the responsive one-DOM layouts. For the Landing: rail (`.tour-list`) + overview (`.tour-overview`) present together, `data-phone-view` follows the `view` prop, selected-vs-idle card `data-state`. For RouteMap-as-overview: `.start-tour[data-tour]` hook + Start/Resume CTA text and the `.tour-overview[data-tour]` root. For TourStop: the phone hero `MapPanel` and the rail `MapPanel` both mount with distinct `id`s (`tour-map-hero` / `tour-map`) and accessible names, since jsdom has no WebGL so both fall back to the SVG schematic — the live map, its markers (current-stop pin, user-location dot), and the recentring behaviour are verified manually in the browser instead. TourStop also covers the lightbox (open from body image and hero button, close via Escape/button/backdrop, image click does not close).
 
-Expected baseline: **160 tests pass, 0 errors** from `npm run check`.
+Expected baseline: **191 tests pass, 0 errors** from `npm run check`.

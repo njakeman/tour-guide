@@ -191,3 +191,71 @@ describe('isBasemapRenderableEvent', () => {
     expect(isBasemapRenderableEvent({})).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// buildRouteLineData
+// ---------------------------------------------------------------------------
+import { buildRouteLineData, ROUTE_LINE_SOURCE_ID } from './style'
+import type { TourRoute, TourStop } from '../types'
+
+function lineStop(id: string, lat: number | null, lng: number | null): TourStop {
+  return {
+    id,
+    title: id,
+    lat,
+    lng,
+    proximity_radius: 30,
+    evidence: 'e',
+    interpretation: '',
+    bodyHtml: '',
+    media: [],
+  }
+}
+
+function lineRoute(overrides: Partial<TourRoute> = {}): TourRoute {
+  return {
+    id: 'r',
+    name: 'R',
+    description: 'd',
+    icon: '🗺️',
+    stops: [lineStop('a', 50.85, -0.379), lineStop('b', 50.86, -0.377)],
+    map: { basemap: '/tours/r/r.pmtiles' },
+    ...overrides,
+  }
+}
+
+describe('buildRouteLineData', () => {
+  it('prefers the authored routeLine coordinates', () => {
+    const authored: [number, number][] = [
+      [-0.38, 50.849],
+      [-0.379, 50.85],
+      [-0.377, 50.86],
+    ]
+    const data = buildRouteLineData(
+      lineRoute({ map: { basemap: '/tours/r/r.pmtiles', routeLine: authored } })
+    )
+    expect(data?.geometry.coordinates).toEqual(authored)
+    expect(data?.geometry.type).toBe('LineString')
+  })
+
+  it('falls back to a line through the stops with coordinates', () => {
+    const data = buildRouteLineData(
+      lineRoute({ stops: [lineStop('a', 50.85, -0.379), lineStop('x', null, null), lineStop('b', 50.86, -0.377)] })
+    )
+    expect(data?.geometry.coordinates).toEqual([
+      [-0.379, 50.85],
+      [-0.377, 50.86],
+    ])
+  })
+
+  it('returns null with fewer than two usable points', () => {
+    expect(buildRouteLineData(lineRoute({ stops: [lineStop('a', 50.85, -0.379)] }))).toBeNull()
+    expect(
+      buildRouteLineData(lineRoute({ stops: [lineStop('a', null, null), lineStop('b', null, null)] }))
+    ).toBeNull()
+  })
+
+  it('exports a stable source id for the map layer', () => {
+    expect(ROUTE_LINE_SOURCE_ID).toBe('route-line')
+  })
+})

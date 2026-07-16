@@ -107,6 +107,60 @@ function statPublicFile(href: string, publicDir: string = PUBLIC_DIR): number | 
   }
 }
 
+// ---------------------------------------------------------------------------
+// Route line
+// Authors drop a GeoJSON LineString (bare geometry, Feature, or a
+// FeatureCollection whose first LineString wins) as route.geojson next to
+// tour.yaml — the real walking path, drawn on the live map. Parsed at build
+// time and inlined as map.routeLine, so it ships in the bundle and works
+// offline with no runtime fetch. Malformed files throw (build fails loudly,
+// same policy as tour.yaml errors).
+// ---------------------------------------------------------------------------
+export function parseRouteLine(raw: string, sourcePath: string): [number, number][] {
+  const fail = (why: string): never => {
+    throw new Error(`[content] Invalid route.geojson at ${sourcePath}: ${why}`)
+  }
+  let json: unknown
+  try {
+    json = JSON.parse(raw)
+  } catch {
+    return fail('not valid JSON')
+  }
+
+  const findLineString = (node: any): any | null => {
+    if (!node || typeof node !== 'object') return null
+    if (node.type === 'LineString') return node
+    if (node.type === 'Feature') return findLineString(node.geometry)
+    if (node.type === 'FeatureCollection') {
+      for (const f of node.features ?? []) {
+        const hit = findLineString(f)
+        if (hit) return hit
+      }
+    }
+    return null
+  }
+
+  const line = findLineString(json)
+  if (!line) return fail('no LineString geometry found')
+  const coords = line.coordinates
+  if (!Array.isArray(coords) || coords.length < 2) {
+    return fail('LineString needs at least 2 coordinates')
+  }
+  return coords.map((c: unknown, i: number) => {
+    if (
+      !Array.isArray(c) ||
+      c.length < 2 ||
+      typeof c[0] !== 'number' ||
+      typeof c[1] !== 'number' ||
+      Math.abs(c[0]) > 180 ||
+      Math.abs(c[1]) > 90
+    ) {
+      return fail(`coordinate ${i} is not a valid [lng, lat] pair`)
+    }
+    return [c[0], c[1]] as [number, number]
+  })
+}
+
 export function probeImage(href: string, publicDir: string = PUBLIC_DIR): ImageProbe {
   // Only root-relative local paths live under public/
   if (!href.startsWith('/') || href.startsWith('//')) return {}
@@ -327,11 +381,20 @@ export function loadTourRoute(routeDir: string): TourRoute {
 
   // Rewrite the basemap path through withBase() so it's correct on sub-path hosts
   // (same mechanism as hero.src). Authors always write /tours/… in tour.yaml.
+  // Authored walking path (see parseRouteLine) — only meaningful with a live
+  // map, so it rides on the map block.
+  const routeGeojsonPath = join(routeDir, 'route.geojson')
+  const routeLine =
+    tourYaml.map?.basemap && existsSync(routeGeojsonPath)
+      ? parseRouteLine(readFileSync(routeGeojsonPath, 'utf-8'), routeGeojsonPath)
+      : undefined
+
   const tourMap: TourMap | undefined = tourYaml.map?.basemap
     ? {
         basemap: withBase(tourYaml.map.basemap),
         center: tourYaml.map.center,
         zoom: tourYaml.map.zoom,
+        ...(routeLine ? { routeLine } : {}),
       }
     : undefined
 

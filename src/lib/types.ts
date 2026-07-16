@@ -76,6 +76,9 @@ export type TourMap = {
   center?: [number, number]
   /** Initial zoom level */
   zoom?: number
+  /** Authored walking path ([lng, lat] pairs) from content/routes/<id>/route.geojson.
+   * Absent → MapPanel falls back to a line through the stop coordinates. */
+  routeLine?: [number, number][]
 }
 
 /**

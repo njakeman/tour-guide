@@ -168,4 +168,20 @@ describe('Content Pipeline', () => {
       else expect(mediaBytes).toBe(0)
     }
   })
+
+  it('inlines route.geojson as map.routeLine ([lng, lat] pairs)', () => {
+    for (const routeDir of routeDirs()) {
+      const hasGeojson = existsSync(join(routeDir, 'route.geojson'))
+      const route = loadTourRoute(routeDir)
+      if (!hasGeojson || !route.map) continue
+
+      const line = route.map.routeLine
+      expect(line, `${route.id}: route.geojson present but routeLine missing`).toBeTruthy()
+      expect(line!.length).toBeGreaterThanOrEqual(2)
+      for (const [lng, lat] of line!) {
+        expect(Math.abs(lng), `${route.id}: lng out of range`).toBeLessThanOrEqual(180)
+        expect(Math.abs(lat), `${route.id}: lat out of range`).toBeLessThanOrEqual(90)
+      }
+    }
+  })
 })

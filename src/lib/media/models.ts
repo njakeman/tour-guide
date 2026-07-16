@@ -59,6 +59,17 @@ export async function hydrateModels(
     viewer.setAttribute('auto-rotate', '')
     // Model bytes fetch only when the viewer scrolls near the viewport
     viewer.setAttribute('loading', 'lazy')
+    // AR: Quick Look on iOS (USDZ auto-generated on-device from the GLB —
+    // static models only, no ios-src needed), Scene Viewer on Android.
+    // model-viewer hides the slotted button on unsupported devices (desktop).
+    viewer.setAttribute('ar', '')
+    viewer.setAttribute('ar-modes', 'webxr scene-viewer quick-look')
+    const arButton = document.createElement('button')
+    arButton.setAttribute('slot', 'ar-button')
+    arButton.type = 'button'
+    arButton.className = 'model-ar-button'
+    arButton.textContent = '⤴ View in your space'
+    viewer.appendChild(arButton)
 
     stub.querySelector('.model-stub')?.remove()
     stub.querySelector('.model-label')?.remove()

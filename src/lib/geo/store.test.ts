@@ -5,6 +5,8 @@ import {
   createProximityStore,
   geolocation,
   setGeoAccuracyMode,
+  initialBearing,
+  bearingToCardinal,
   type GeoState,
 } from './store'
 import { writable, get } from 'svelte/store'
@@ -44,6 +46,43 @@ describe('haversineDistance', () => {
     const d = haversineDistance(-33.8688, 151.2093, -37.8136, 144.9631)
     expect(d).toBeGreaterThan(700_000)
     expect(d).toBeLessThan(800_000)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// initialBearing / bearingToCardinal
+// ---------------------------------------------------------------------------
+describe('initialBearing', () => {
+  it('points north for a due-north target', () => {
+    expect(initialBearing(50.85, -0.379, 50.86, -0.379)).toBeCloseTo(0, 5)
+  })
+
+  it('points east for a due-east target', () => {
+    expect(initialBearing(50.85, -0.379, 50.85, -0.369)).toBeCloseTo(90, 0)
+  })
+
+  it('points south for a due-south target', () => {
+    expect(initialBearing(50.86, -0.379, 50.85, -0.379)).toBeCloseTo(180, 5)
+  })
+
+  it('points west for a due-west target', () => {
+    expect(initialBearing(50.85, -0.369, 50.85, -0.379)).toBeCloseTo(270, 0)
+  })
+})
+
+describe('bearingToCardinal', () => {
+  it('maps the eight winds and wraps at the sector edges', () => {
+    expect(bearingToCardinal(0)).toBe('N')
+    expect(bearingToCardinal(45)).toBe('NE')
+    expect(bearingToCardinal(90)).toBe('E')
+    expect(bearingToCardinal(135)).toBe('SE')
+    expect(bearingToCardinal(180)).toBe('S')
+    expect(bearingToCardinal(225)).toBe('SW')
+    expect(bearingToCardinal(270)).toBe('W')
+    expect(bearingToCardinal(315)).toBe('NW')
+    expect(bearingToCardinal(359)).toBe('N')
+    expect(bearingToCardinal(22)).toBe('N')
+    expect(bearingToCardinal(23)).toBe('NE')
   })
 })
 

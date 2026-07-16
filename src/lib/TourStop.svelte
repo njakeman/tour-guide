@@ -21,7 +21,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import type { TourRoute, TourStop } from './types'
-  import { isNearby } from './geo/store'
+  import { isNearby, bearingToCardinal } from './geo/store'
+  import { compassHeading } from './geo/orientation'
   import { hydrateModels } from './media/models'
   import MapPanel from './MapPanel.svelte'
   import StopList from './StopList.svelte'
@@ -39,6 +40,8 @@
     accuracy?: number
     /** Epoch ms of the latest GPS fix; undefined when no GPS */
     fixTimestamp?: number
+    /** Bearing (° from north) from the walker to this stop; undefined when no GPS */
+    bearingDegrees?: number
     onPrev: () => void
     onNext: () => void
     onBack: () => void
@@ -53,6 +56,7 @@
     distanceMetres,
     accuracy,
     fixTimestamp,
+    bearingDegrees,
     onPrev,
     onNext,
     onBack,
@@ -384,7 +388,21 @@
               {#if nearby}
                 You're <strong class="dist-highlight">{fmtDistance(distanceMetres)}</strong> from this stop · arriving
               {:else}
-                <strong class="dist-highlight">{fmtDistance(distanceMetres)}</strong> to this stop
+                <strong class="dist-highlight">{fmtDistance(distanceMetres)}</strong>
+                {#if bearingDegrees !== undefined}
+                  <span class="bearing">
+                    {bearingToCardinal(bearingDegrees)}
+                    {#if $compassHeading != null}
+                      <!-- Device-relative pointer: rotate by bearing − facing -->
+                      <span
+                        class="bearing-arrow"
+                        style="transform: rotate({bearingDegrees - $compassHeading}deg)"
+                        aria-hidden="true"
+                      >↑</span>
+                    {/if}
+                  </span>
+                {/if}
+                to this stop
               {/if}
             </span>
           {:else}
@@ -930,6 +948,20 @@
   .dist-highlight {
     color: var(--olive);
     font-weight: 700;
+  }
+
+  /* Bearing readout: cardinal always; the arrow only when the compass is
+     live (it points device-relative — up = straight ahead) */
+  .bearing {
+    color: var(--olive);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .bearing-arrow {
+    display: inline-block;
+    transition: transform 0.2s ease;
+    transform-origin: 50% 55%;
   }
 
   .nav-row {
