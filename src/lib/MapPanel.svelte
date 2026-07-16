@@ -236,8 +236,9 @@
                 .then((m) => m.default as unknown as StyleSpecification)
                 .catch(() => null)
             : Promise.resolve(null),
+          // Fetched alongside the modules, not after them — one round-trip fewer
+          import('maplibre-gl/dist/maplibre-gl.css'),
         ])
-        await import('maplibre-gl/dist/maplibre-gl.css')
         if (disposed || !mapEl) return
 
         const maplibregl = maplibreModule.default

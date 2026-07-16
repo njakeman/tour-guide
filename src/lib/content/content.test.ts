@@ -3,9 +3,16 @@ import { readdirSync, readFileSync, existsSync } from 'fs'
 import { join, resolve, basename } from 'path'
 import matter from 'gray-matter'
 import yaml from 'js-yaml'
+import { loadTourRoute } from './vite-plugin'
 
 const CONTENT_DIR = resolve('content')
 const ROUTES_DIR = join(CONTENT_DIR, 'routes')
+
+function routeDirs(): string[] {
+  return readdirSync(ROUTES_DIR, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => join(ROUTES_DIR, d.name))
+}
 
 describe('Content Pipeline', () => {
   it('has at least one route with a valid tour.yaml', () => {
@@ -130,6 +137,35 @@ describe('Content Pipeline', () => {
 
         expect(parsed.content.trim().length, `${file}: empty body`).toBeGreaterThan(0)
       }
+    }
+  })
+
+  it('builds an offline manifest per route (loadTourRoute against real content)', () => {
+    // NOTE: media files may be absent here (CI tests run before demo:seed) —
+    // the manifest legitimately omits unstattable files, so only structure and
+    // the committed pmtiles sizes are asserted.
+    for (const routeDir of routeDirs()) {
+      const route = loadTourRoute(routeDir)
+
+      if (route.map?.basemap) {
+        expect(route.offline, `${route.id}: route with a basemap must carry a manifest`).toBeTruthy()
+        expect(
+          route.offline!.basemapBytes,
+          `${route.id}: committed pmtiles should stat > 0`
+        ).toBeGreaterThan(0)
+      }
+      if (!route.offline) continue
+
+      const { mediaUrls, mediaBytes } = route.offline
+      expect(new Set(mediaUrls).size, `${route.id}: duplicate manifest URLs`).toBe(mediaUrls.length)
+      for (const url of mediaUrls) {
+        expect(url, `${route.id}: manifest URL outside the tour dir`).toMatch(
+          new RegExp(`^/tours/${route.id}/`)
+        )
+      }
+      // Every listed URL was statted, so bytes must be positive iff URLs exist
+      if (mediaUrls.length > 0) expect(mediaBytes).toBeGreaterThan(0)
+      else expect(mediaBytes).toBe(0)
     }
   })
 })

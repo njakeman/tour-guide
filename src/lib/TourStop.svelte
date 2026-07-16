@@ -129,11 +129,19 @@
 
   // ── Body media: model hydration + image lightbox ─────────────────────────
   let bodyEl = $state<HTMLElement | null>(null)
+  let heroImgEl = $state<HTMLImageElement | null>(null)
   let lightbox = $state<{ src: string; alt: string; caption?: string } | null>(null)
 
   function openHeroLightbox() {
     if (!heroSrc) return
-    lightbox = { src: heroSrc, alt: heroCaption ?? stop.title, caption: heroCaption }
+    // currentSrc: reuse the variant the <picture> actually rendered (the
+    // .webp is what the SW runtime cache holds — the original may not be
+    // fetchable offline)
+    lightbox = {
+      src: heroImgEl?.currentSrc || heroSrc,
+      alt: heroCaption ?? stop.title,
+      caption: heroCaption,
+    }
   }
 
   // Runs after each {@html} render (the component is not keyed, so prev/next
@@ -157,7 +165,8 @@
       if (!img) return
       const caption =
         img.closest('figure')?.querySelector('figcaption')?.textContent ?? undefined
-      lightbox = { src: img.src, alt: img.alt, caption }
+      // currentSrc so a <picture> webp variant full-screens the cached asset
+      lightbox = { src: img.currentSrc || img.src, alt: img.alt, caption }
     }
     const onBodyClick = (event: MouseEvent) => openFromEvent(event)
     const onBodyKeydown = (event: KeyboardEvent) => {
@@ -259,7 +268,22 @@
               aria-label={`View image: ${heroCaption ?? stop.title}`}
               onclick={openHeroLightbox}
             >
-              <img src={heroSrc} alt={heroCaption ?? stop.title} class="plate-img" loading="eager" onerror={onHeroError} />
+              <picture>
+                {#if stop.hero?.webpSrc}
+                  <source type="image/webp" srcset={stop.hero.webpSrc} />
+                {/if}
+                <img
+                  bind:this={heroImgEl}
+                  src={heroSrc}
+                  alt={heroCaption ?? stop.title}
+                  class="plate-img"
+                  loading="eager"
+                  decoding="async"
+                  width={stop.hero?.width}
+                  height={stop.hero?.height}
+                  onerror={onHeroError}
+                />
+              </picture>
             </button>
           {:else}
             <!-- Procedural contour art fallback -->

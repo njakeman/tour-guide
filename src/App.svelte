@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
   import { SvelteSet } from 'svelte/reactivity'
   import { writable } from 'svelte/store'
   import { routes } from 'virtual:tour-content'
   import type { TourStop } from './lib/types'
-  import { geolocation, createProximityStore } from './lib/geo/store'
+  import { geolocation, createProximityStore, setGeoAccuracyMode } from './lib/geo/store'
   import { parseHash, buildHash, type View } from './lib/router'
   import TourLibrary from './lib/TourLibrary.svelte'
   import TourStopView from './lib/TourStop.svelte'
@@ -106,10 +106,16 @@
   })
 
   // ── Proximity ─────────────────────────────────────────────────────────────
-  // Bridge between Svelte 5 runes (currentRoute) and Svelte 4 store API
-  const stopsStore = writable<TourStop[]>(currentRoute?.stops ?? [])
+  // Bridge between Svelte 5 runes (currentRoute) and Svelte 4 store API.
+  // untrack: the initial-value capture is intentional — the $effect below
+  // keeps the store in sync with currentRoute.
+  const stopsStore = writable<TourStop[]>(untrack(() => currentRoute?.stops ?? []))
   $effect(() => { stopsStore.set(currentRoute?.stops ?? []) })
   const proximity = createProximityStore(stopsStore)
+
+  // Library browsing needs only km-scale distances (tour sorting); once a
+  // tour is open the walker locator and 30m stop proximity need GNSS.
+  $effect(() => { setGeoAccuracyMode(view === 'library' ? 'low' : 'high') })
 
   const currentDist = $derived(
     currentStop ? $proximity.distances[currentStop.id] : undefined

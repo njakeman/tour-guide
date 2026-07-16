@@ -396,6 +396,8 @@ const ROUTES = [
     { name: 'pit-field.png',     make: () => makePNG(1200, 800, { ...caburnOpts, label: 'THE PIT FIELD', sublabel: 'TQ 444 089 · 146m AOD' }) },
     { name: 'ouse-view.png',     make: () => makePNG(800, 500, { ...caburnOpts, label: 'THE OUSE VALLEY', sublabel: 'inline image demo' }) },
     { name: 'caburn-intro.mp3',  make: () => Buffer.from(SILENT_MP3_B64, 'base64') },
+    // caburn.glb is a real committed terrain model (see .gitignore), not a
+    // placeholder — deliberately absent from this generation table.
   ]},
 ]
 

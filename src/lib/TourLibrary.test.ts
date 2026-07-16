@@ -77,6 +77,31 @@ describe('TourLibrary', () => {
     })
     expect(screen.queryByLabelText('Map saved offline')).toBeNull()
   })
+
+  it('hides the save-all row when no route has anything to save', () => {
+    const { container } = render(TourLibrary, {
+      props: { routes: [makeRoute('a', 'Route A')], onSelect: vi.fn() },
+    })
+    expect(container.querySelector('.save-all')).toBeNull()
+  })
+
+  it('shows the save-all row with the summed size when manifests exist', () => {
+    const a = {
+      ...makeRoute('a', 'Route A'),
+      offline: { mediaUrls: ['/tours/a/x.webp'], mediaBytes: 2_000_000, basemapBytes: 5_000_000 },
+    }
+    const b = {
+      ...makeRoute('b', 'Route B'),
+      offline: { mediaUrls: [], mediaBytes: 0, basemapBytes: 9_000_000 },
+    }
+    const { container } = render(TourLibrary, { props: { routes: [a, b], onSelect: vi.fn() } })
+    const row = container.querySelector('.save-all') as HTMLButtonElement
+    expect(row).toBeTruthy()
+    expect(row.querySelector('.save-all-label')?.textContent).toContain(
+      'Save all tours offline · ~16 MB'
+    )
+    expect(row.disabled).toBe(false)
+  })
 })
 
 describe('TourLibrary — responsive master–detail Landing', () => {

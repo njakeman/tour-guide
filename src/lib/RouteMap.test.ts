@@ -94,4 +94,37 @@ describe('RouteMap', () => {
     const { container } = render(RouteMap, { props: baseProps() })
     expect(container.querySelector('.tour-overview[data-tour="test-route"]')).toBeTruthy()
   })
+
+  it('does not render the save-offline button without a basemap or manifest', () => {
+    const { container } = render(RouteMap, { props: baseProps() })
+    expect(container.querySelector('.ov-save')).toBeNull()
+  })
+
+  it('renders a labelled save-tour button with the manifest size estimate', () => {
+    const route = makeRoute({
+      map: { basemap: '/tours/test-route/test.pmtiles' },
+      offline: {
+        mediaUrls: ['/tours/test-route/a.webp'],
+        mediaBytes: 3_000_000,
+        basemapBytes: 5_000_000,
+      },
+    })
+    const { container } = render(RouteMap, { props: baseProps(route) })
+    const save = container.querySelector('.ov-save') as HTMLButtonElement
+    expect(save).toBeTruthy()
+    // The visible text label — not just the icon/tooltip (discoverability)
+    expect(save.querySelector('.ov-save-label')?.textContent).toContain(
+      'Save tour offline · ~8 MB'
+    )
+    expect(save.getAttribute('aria-label')).toBe('Save tour offline · ~8 MB')
+  })
+
+  it('renders the save button for a media-only tour (manifest, no basemap)', () => {
+    const route = makeRoute({
+      offline: { mediaUrls: ['/tours/test-route/a.webp'], mediaBytes: 900_000, basemapBytes: 0 },
+    })
+    const { container } = render(RouteMap, { props: baseProps(route) })
+    const label = container.querySelector('.ov-save .ov-save-label')
+    expect(label?.textContent).toContain('Save tour offline · ~900 KB')
+  })
 })

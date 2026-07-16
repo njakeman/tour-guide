@@ -13,6 +13,11 @@ export type MediaItem = {
 export type HeroImage = {
   src: string
   caption?: string
+  /** Intrinsic dimensions probed at build time (of the rendered variant) */
+  width?: number
+  height?: number
+  /** Base-path-rewritten URL of the build-generated .webp variant, if any */
+  webpSrc?: string
 }
 
 /**
@@ -45,6 +50,21 @@ export type TourStop = {
 }
 
 /**
+ * Build-time inventory of everything a tour needs offline beyond the app
+ * shell. Drives the "Save tour offline"/"Save all" warm-up buttons — sizes
+ * are statted from public/ at build, so the UI shows real numbers without
+ * runtime HEAD requests. Files missing at build time (e.g. dev without
+ * `npm run demo:seed`) are omitted, so warming never 404s.
+ */
+export type OfflineManifest = {
+  /** Base-path-rewritten media URLs to warm (webp variant preferred when it exists) */
+  mediaUrls: string[]
+  mediaBytes: number
+  /** Size of the pmtiles basemap; 0 when the tour has no basemap */
+  basemapBytes: number
+}
+
+/**
  * Optional basemap configuration for a tour route.
  * The basemap URL is base-path-rewritten by the content plugin at build time —
  * authors always write /tours/… paths.
@@ -72,5 +92,7 @@ export type TourRoute = {
   duration?: string
   /** Optional basemap configuration — drives the MapLibre map on the route overview */
   map?: TourMap
+  /** Build-time offline inventory — media URLs + byte sizes for the save-offline UI */
+  offline?: OfflineManifest
   stops: TourStop[]
 }

@@ -3,10 +3,8 @@ import './styles/brand.css'
 import './app.css'
 // Latin subsets only — the full imports pull Cyrillic/Vietnamese/latin-ext
 // files into the bundle and the SW precache for glyphs that never render.
-import '@fontsource/spectral/latin-400.css'
-import '@fontsource/spectral/latin-400-italic.css'
+// Spectral ships 600 only: every --font-serif rule sets font-weight 600.
 import '@fontsource/spectral/latin-600.css'
-import '@fontsource/spectral/latin-700.css'
 import '@fontsource/hanken-grotesk/latin-400.css'
 import '@fontsource/hanken-grotesk/latin-500.css'
 import '@fontsource/hanken-grotesk/latin-600.css'

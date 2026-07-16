@@ -52,6 +52,26 @@ export function isNearby(distance: number, radius: number, accuracy: number): bo
   return distance <= radius
 }
 
+// ---------------------------------------------------------------------------
+// Accuracy mode
+// The library screen only sorts tours by distance (km apart), so it runs the
+// watch in cheap 'low' mode (Wi-Fi/cell positioning). Opening a tour switches
+// to 'high' (GNSS) — the walker locator and the 30m stop proximity need it.
+// App.svelte drives this from the current view.
+// ---------------------------------------------------------------------------
+export type GeoAccuracyMode = 'low' | 'high'
+
+let accuracyMode: GeoAccuracyMode = 'low'
+/** Set by the store's start notifier while a watch is running. */
+let restartWatch: (() => void) | null = null
+
+export function setGeoAccuracyMode(mode: GeoAccuracyMode): void {
+  if (mode === accuracyMode) return
+  accuracyMode = mode
+  // A running watch keeps its options — restart it to apply the new mode.
+  restartWatch?.()
+}
+
 /**
  * Svelte store that tracks browser geolocation with a fast seed
  * (`getCurrentPosition`) before the continuous `watchPosition`.
@@ -71,11 +91,11 @@ function createGeolocationStore() {
       }
       update((s) => ({ ...s, available: true }))
 
-      const opts: PositionOptions = {
-        enableHighAccuracy: true,
+      const optsFor = (): PositionOptions => ({
+        enableHighAccuracy: accuracyMode === 'high',
         maximumAge: 30_000,
         timeout: 10_000,
-      }
+      })
 
       function onSuccess(pos: GeolocationPosition) {
         update((s) => {
@@ -111,10 +131,18 @@ function createGeolocationStore() {
       }
 
       // Fast seed: get an immediate fix, then watch for updates
-      navigator.geolocation.getCurrentPosition(onSuccess, onError, opts)
-      const watchId = navigator.geolocation.watchPosition(onSuccess, onError, opts)
+      navigator.geolocation.getCurrentPosition(onSuccess, onError, optsFor())
+      let watchId = navigator.geolocation.watchPosition(onSuccess, onError, optsFor())
 
-      return () => navigator.geolocation.clearWatch(watchId)
+      restartWatch = () => {
+        navigator.geolocation.clearWatch(watchId)
+        watchId = navigator.geolocation.watchPosition(onSuccess, onError, optsFor())
+      }
+
+      return () => {
+        restartWatch = null
+        navigator.geolocation.clearWatch(watchId)
+      }
     }
   )
 }

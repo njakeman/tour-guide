@@ -10,6 +10,8 @@ dist/
 # Generated demo media (run `npm run demo:seed` to recreate)
 # Real tour media in public/tours/ should be committed — only the demo placeholders are gitignored.
 # Ignore the seeded media inside the directory, but un-ignore committed real assets.
+# .webp variants are always generated (scripts/optimize-media.mjs, runs in `npm run build`) — never commit them.
+/public/tours/**/*.webp
 /public/tours/cissbury-ring/*
 !/public/tours/cissbury-ring/cissbury.pmtiles
 /public/tours/wolstonbury-hill/*

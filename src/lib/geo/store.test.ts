@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   haversineDistance,
   isNearby,
   createProximityStore,
   geolocation,
+  setGeoAccuracyMode,
   type GeoState,
 } from './store'
 import { writable, get } from 'svelte/store'
@@ -170,5 +171,73 @@ describe('geolocation store', () => {
     expect(state!.available).toBe(false)
     expect(state!.loading).toBe(false)
     unsub()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Accuracy mode — low on the library, high once a tour is open
+// ---------------------------------------------------------------------------
+describe('setGeoAccuracyMode', () => {
+  let watchPosition: ReturnType<typeof vi.fn>
+  let clearWatch: ReturnType<typeof vi.fn>
+  let nextWatchId: number
+
+  beforeEach(() => {
+    nextWatchId = 1
+    watchPosition = vi.fn(() => nextWatchId++)
+    clearWatch = vi.fn()
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition: vi.fn(), watchPosition, clearWatch },
+    })
+  })
+
+  // The mode is module-level state shared across tests — always reset
+  afterEach(() => setGeoAccuracyMode('low'))
+
+  it('starts the watch in low-accuracy mode by default', () => {
+    const unsub = geolocation.subscribe(() => {})
+    expect(watchPosition).toHaveBeenCalledTimes(1)
+    expect(watchPosition.mock.calls[0][2]).toMatchObject({ enableHighAccuracy: false })
+    unsub()
+  })
+
+  it('restarts a running watch when the mode changes', () => {
+    const unsub = geolocation.subscribe(() => {})
+    setGeoAccuracyMode('high')
+
+    expect(clearWatch).toHaveBeenCalledWith(1)
+    expect(watchPosition).toHaveBeenCalledTimes(2)
+    expect(watchPosition.mock.calls[1][2]).toMatchObject({ enableHighAccuracy: true })
+
+    // Teardown clears the NEW watch id, not the stale one
+    unsub()
+    expect(clearWatch).toHaveBeenLastCalledWith(2)
+  })
+
+  it('does not restart when set to the current mode', () => {
+    const unsub = geolocation.subscribe(() => {})
+    setGeoAccuracyMode('low')
+    expect(clearWatch).not.toHaveBeenCalled()
+    expect(watchPosition).toHaveBeenCalledTimes(1)
+    unsub()
+  })
+
+  it('applies a mode set while unsubscribed to the next watch', () => {
+    setGeoAccuracyMode('high')
+    expect(watchPosition).not.toHaveBeenCalled()
+
+    const unsub = geolocation.subscribe(() => {})
+    expect(watchPosition.mock.calls[0][2]).toMatchObject({ enableHighAccuracy: true })
+    unsub()
+  })
+
+  it('mode change after unsubscribe does not touch the cleared watch', () => {
+    const unsub = geolocation.subscribe(() => {})
+    unsub()
+    clearWatch.mockClear()
+    setGeoAccuracyMode('high')
+    expect(clearWatch).not.toHaveBeenCalled()
+    expect(watchPosition).toHaveBeenCalledTimes(1)
   })
 })

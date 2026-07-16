@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { withBase, escapeHtml, renderMediaHtml } from './vite-plugin'
+import { resolve } from 'path'
+import {
+  withBase,
+  escapeHtml,
+  renderMediaHtml,
+  probeImage,
+  startMediaCollection,
+  drainMediaCollection,
+} from './vite-plugin'
+
+// Committed fixtures: sample.png (8×6) with a .webp sibling, nowebp.png (4×3)
+const FIXTURES = resolve(__dirname, '__fixtures__')
 
 describe('withBase', () => {
   it('leaves paths unchanged at root base', () => {
@@ -88,5 +99,84 @@ describe('renderMediaHtml', () => {
     const html = renderMediaHtml('/tours/x/a.png', `He said "hello" & <waved>`, '/')
     expect(html).toContain('alt="He said &quot;hello&quot; &amp; &lt;waved&gt;"')
     expect(html).not.toContain('<waved>')
+  })
+
+  it('renders a plain <img> without dimensions when the file is not on disk', () => {
+    const html = renderMediaHtml('/tours/x/missing.png', 'Gone', '/', FIXTURES)
+    expect(html).toContain('<img src="/tours/x/missing.png"')
+    expect(html).not.toContain('<picture>')
+    expect(html).not.toContain('width=')
+  })
+
+  it('adds intrinsic dimensions and decoding="async" for a probeable image', () => {
+    const html = renderMediaHtml('/nowebp.png', 'Plain', '/', FIXTURES)
+    expect(html).toContain('decoding="async"')
+    expect(html).toContain('width="4" height="3"')
+    expect(html).not.toContain('<picture>')
+  })
+
+  it('upgrades to <picture> when a .webp sibling exists, sized from the webp', () => {
+    const html = renderMediaHtml('/sample.png', 'Variant', '/', FIXTURES)
+    expect(html).toContain('<picture><source type="image/webp" srcset="/sample.webp" />')
+    expect(html).toContain('<img src="/sample.png"')
+    expect(html).toContain('width="8" height="6"')
+    expect(html).toContain('</picture>')
+  })
+
+  it('applies the base path to the webp srcset too', () => {
+    const html = renderMediaHtml('/sample.png', 'Variant', '/tour-guide/', FIXTURES)
+    expect(html).toContain('srcset="/tour-guide/sample.webp"')
+    expect(html).toContain('src="/tour-guide/sample.png"')
+  })
+})
+
+describe('media collection (offline manifest)', () => {
+  it('collects the effective URL — webp when the sibling exists, original otherwise', () => {
+    startMediaCollection()
+    renderMediaHtml('/sample.png', 'With variant', '/', FIXTURES)
+    renderMediaHtml('/nowebp.png', 'No variant', '/', FIXTURES)
+    renderMediaHtml('/tours/x/narration.mp3', 'Audio', '/', FIXTURES)
+    renderMediaHtml('/tours/x/fort.glb', 'Model', '/', FIXTURES)
+    expect(drainMediaCollection().sort()).toEqual([
+      '/nowebp.png',
+      '/sample.webp',
+      '/tours/x/fort.glb',
+      '/tours/x/narration.mp3',
+    ])
+  })
+
+  it('dedupes repeated references and collects nothing when not started', () => {
+    startMediaCollection()
+    renderMediaHtml('/nowebp.png', 'a', '/', FIXTURES)
+    renderMediaHtml('/nowebp.png', 'b', '/', FIXTURES)
+    expect(drainMediaCollection()).toEqual(['/nowebp.png'])
+
+    // Not started → renders must not leak into a stale collector
+    renderMediaHtml('/nowebp.png', 'c', '/', FIXTURES)
+    expect(drainMediaCollection()).toEqual([])
+  })
+})
+
+describe('probeImage', () => {
+  it('ignores external URLs and data URIs', () => {
+    expect(probeImage('https://example.com/a.png', FIXTURES)).toEqual({})
+    expect(probeImage('//cdn.example.com/a.png', FIXTURES)).toEqual({})
+    expect(probeImage('data:image/png;base64,AAA', FIXTURES)).toEqual({})
+  })
+
+  it('returns dimensions and the webp sibling for a matched pair', () => {
+    expect(probeImage('/sample.png', FIXTURES)).toEqual({
+      width: 8,
+      height: 6,
+      webpHref: '/sample.webp',
+    })
+  })
+
+  it('returns dimensions only when no sibling exists', () => {
+    expect(probeImage('/nowebp.png', FIXTURES)).toEqual({ width: 4, height: 3 })
+  })
+
+  it('returns empty for missing files', () => {
+    expect(probeImage('/missing.png', FIXTURES)).toEqual({})
   })
 })

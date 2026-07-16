@@ -15,7 +15,12 @@
   import { onMount } from 'svelte'
   import type { TourRoute } from './types'
   import { geolocation, haversineDistance } from './geo/store'
-  import { isBasemapCached, cacheBasemap, basemapSize } from './offline/store'
+  import {
+    isTourCached,
+    cacheTourOffline,
+    tourOfflineBytes,
+    fmtBytes,
+  } from './offline/store'
   import MapPanel from './MapPanel.svelte'
   import StopList from './StopList.svelte'
 
@@ -43,37 +48,37 @@
     return `${(m / 1000).toFixed(1)} km`
   }
 
-  // ── Offline basemap state ─────────────────────────────────────────────────
-  let basemapCached = $state(false)
-  let savingBasemap = $state(false)
+  // ── Offline tour state (basemap + all manifest media) ────────────────────
+  // Sizes come from the build-time OfflineManifest — no runtime HEAD requests.
+  // (The cached/saving flags are still onMount-scoped to one route: the
+  // component is remounted per route via {#key} in TourLibrary.)
+  let tourCached = $state(false)
+  let saving = $state(false)
   let saveFailed = $state(false)
-  let basemapSizeLabel = $state('')
+  let saveProgress = $state<{ done: number; total: number } | null>(null)
 
-  async function refreshCacheState(basemap: string) {
-    basemapCached = await isBasemapCached(basemap)
-    if (!basemapCached) {
-      const bytes = await basemapSize(basemap)
-      if (bytes) basemapSizeLabel = ` ${Math.round(bytes / 1e6)} MB`
-    }
-  }
+  const offlineBytes = $derived(tourOfflineBytes(route))
+  const sizeLabel = $derived(offlineBytes > 0 ? ` · ~${fmtBytes(offlineBytes)}` : '')
+  const canSaveOffline = $derived(!!route.offline || !!route.map?.basemap)
 
-  /** Download the full basemap into the SW cache so the map works offline. */
-  async function saveMapOffline() {
-    if (!route.map?.basemap || savingBasemap || basemapCached) return
-    savingBasemap = true
+  /** Download everything the tour needs offline (media + basemap) into the SW caches. */
+  async function saveTourOffline() {
+    if (!canSaveOffline || saving || tourCached) return
+    saving = true
     saveFailed = false
     try {
-      await cacheBasemap(route.map.basemap)
-      basemapCached = true
+      await cacheTourOffline(route, (done, total) => (saveProgress = { done, total }))
+      tourCached = true
     } catch {
       saveFailed = true
     } finally {
-      savingBasemap = false
+      saving = false
+      saveProgress = null
     }
   }
 
   onMount(() => {
-    if (route.map?.basemap) void refreshCacheState(route.map.basemap)
+    if (canSaveOffline) void isTourCached(route).then((cached) => (tourCached = cached))
   })
 
   // ── Start / resume ────────────────────────────────────────────────────────
@@ -126,7 +131,7 @@
         <span class="chip">{route.stops.length} stops</span>
         {#if route.total_distance}<span class="chip">{route.total_distance}</span>{/if}
         {#if route.duration}<span class="chip">{route.duration}</span>{/if}
-        {#if basemapCached}
+        {#if tourCached}
           <span class="chip chip--offline">⤓ offline ready</span>
         {/if}
       </div>
@@ -144,27 +149,36 @@
     </div>
   </div>
 
-  <!-- Footer: save-offline square + Start/Resume CTA -->
+  <!-- Footer: save-tour-offline button + Start/Resume CTA -->
   <footer class="ov-footer">
-    {#if route.map?.basemap}
+    {#if canSaveOffline}
       <button
         class="ov-save"
-        class:ov-save--done={basemapCached}
-        onclick={saveMapOffline}
-        disabled={savingBasemap || basemapCached}
+        class:ov-save--done={tourCached}
+        onclick={saveTourOffline}
+        disabled={saving || tourCached}
         aria-label={
-          basemapCached ? 'Map saved offline'
-          : savingBasemap ? 'Saving map offline'
-          : saveFailed ? 'Retry saving map offline'
-          : `Save map offline${basemapSizeLabel}`
+          tourCached ? 'Tour saved offline'
+          : saving ? 'Saving tour offline'
+          : saveFailed ? 'Retry saving tour offline'
+          : `Save tour offline${sizeLabel}`
         }
         title={
-          basemapCached ? 'Map saved offline'
-          : saveFailed ? 'Retry saving map offline'
-          : `Save map offline${basemapSizeLabel}`
+          tourCached ? 'Tour saved offline'
+          : saveFailed ? 'Retry saving tour offline'
+          : `Save tour offline${sizeLabel}`
         }
       >
-        {#if savingBasemap}…{:else if basemapCached}✓{:else}▼{/if}
+        <span class="ov-save-icon" aria-hidden="true">
+          {#if saving}…{:else if tourCached}✓{:else}▼{/if}
+        </span>
+        <span class="ov-save-label">
+          {#if saving && saveProgress}Saving {saveProgress.done}/{saveProgress.total}…
+          {:else if saving}Saving…
+          {:else if tourCached}Offline
+          {:else if saveFailed}Retry save
+          {:else}Save tour offline{sizeLabel}{/if}
+        </span>
       </button>
     {/if}
 
@@ -333,20 +347,33 @@
     padding: 16px 20px calc(20px + env(safe-area-inset-bottom));
   }
 
+  /* Labelled pill — the icon-only square proved undiscoverable */
   .ov-save {
-    width: 60px;
     height: 60px;
+    padding: 0 16px;
     border-radius: 16px;
     background: var(--surface-2);
     border: 1px solid var(--border);
     color: var(--olive);
-    font-size: 1.25rem;
     cursor: pointer;
     flex: none;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
     transition: opacity 0.15s;
+  }
+
+  .ov-save-icon {
+    font-size: 1.125rem;
+    line-height: 1;
+  }
+
+  .ov-save-label {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    white-space: nowrap;
   }
 
   .ov-save:disabled {
@@ -361,6 +388,7 @@
 
   .start-tour {
     flex: 1;
+    min-width: 0;
     height: 60px;
     border-radius: 16px;
     background: var(--accent-btn);
@@ -380,6 +408,9 @@
     font-family: var(--font-sans);
     font-weight: 700;
     font-size: 1.0625rem;
+    /* The labelled save pill narrows the CTA — the sub-line truncates
+       (below) but the primary label must never wrap */
+    white-space: nowrap;
   }
 
   .start-sub {
@@ -387,6 +418,10 @@
     font-size: 0.8125rem;
     opacity: 0.85;
     white-space: nowrap;
+    /* The labelled save pill narrows the CTA on small phones — truncate the
+       sub-line rather than overflowing the footer */
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* Back chip (phone only) — reuses the square nav button look */
@@ -520,10 +555,14 @@
       background: none;
       padding: 11px 16px 16px;
     }
+    /* Tight 436px-column footer: back to the compact square (title/aria-label
+       still carry the full wording) */
     .ov-save {
       width: 52px;
       height: 52px;
+      padding: 0;
     }
+    .ov-save-label { display: none; }
     .start-tour { height: 52px; }
   }
 </style>

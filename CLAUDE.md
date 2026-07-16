@@ -11,7 +11,8 @@ npm run demo         # demo:seed + dev in one command
 npm run check        # svelte-check + tsc (run before committing)
 npm run test         # vitest run (single pass)
 npx vitest           # vitest watch mode
-npm run build        # production build → dist/
+npm run build        # media:optimize + production build → dist/
+npm run media:optimize # generate .webp siblings for public/tours images (runs inside build)
 npm run preview      # serve dist/ — the only way to test the service worker
 ```
 
@@ -37,7 +38,20 @@ virtual:tour-content                ← `import { routes } from 'virtual:tour-co
 App.svelte                          ← consumed at runtime; no network calls for content
 ```
 
-Markdown image syntax is intercepted at build time: `![caption](file.ext)` is rendered to different HTML elements depending on extension (`.mp3` → `<audio>`, `.mp4` → `<video>`, `.glb` → `.media-model` div, images → `<figure><img>`). This happens in `vite-plugin.ts:22-44`.
+Markdown image syntax is intercepted at build time: `![caption](file.ext)` is rendered to different HTML elements depending on extension (`.mp3` → `<audio>`, `.mp4` → `<video>`, `.glb` → `.media-model` div, images → `<figure><img>`). This happens in `vite-plugin.ts`.
+
+**Image pipeline:** `scripts/optimize-media.mjs` (first step of `npm run build`)
+generates a `.webp` sibling (max 1600px wide, q80, mtime-skipped) for every
+png/jpg under `public/tours/`; the siblings are gitignored — CI regenerates
+them each deploy. At render time the plugin probes images under `public/`
+(`probeImage`: sync `image-size`) to emit intrinsic `width`/`height` +
+`decoding="async"`, and upgrades the figure to `<picture>` with a webp
+`<source>` when a sibling exists on disk. Stop `hero` objects gain
+`width`/`height`/`webpSrc` the same way (rendered as `<picture>` in
+TourStop). Dev without running the optimiser degrades to the plain `<img>` —
+nothing depends on the script having run. The lightbox opens
+`img.currentSrc` so the webp variant (the asset the SW runtime cache holds)
+is what full-screens.
 
 Stop files can live at `stops/<id>.md` or with a numbered prefix `stops/01-<id>.md`. The `id:` frontmatter field must match the entry in `tour.yaml`.
 
@@ -46,8 +60,9 @@ Three demo routes exist — `cissbury-ring`, `wolstonbury-hill`, and
 `public/tours/<id>/` folder; basemaps are strictly per-tour (`map.basemap` in
 each `tour.yaml`; nothing is shared between tours). A route without a `map:`
 block is still supported: every map surface renders the inline SVG schematic
-fallback (also used on WebGL failure / load error) and the save-offline
-button doesn't render.
+fallback (also used on WebGL failure / load error); the save-offline button
+renders only when the route has something to save (an `offline` manifest
+and/or a basemap).
 
 ### Body media at runtime: 3D models + image lightbox
 
@@ -320,9 +335,9 @@ This codebase uses Svelte 5 runes throughout (`$state`, `$derived`, `$effect`, `
 ### Stores
 
 Svelte 4 stores coexist with runes (bridged via `writable` + `$effect`):
-- `src/lib/geo/store.ts` — `geolocation` (writable, browser Geolocation API) + `createProximityStore` (derived, Haversine distances to all stops). The GPS watch is subscriber-scoped: it starts on first subscribe and `clearWatch` fires on last unsubscribe (writable start/stop notifier). The proximity store takes a `Readable<TourStop[]>` plus an optional injectable geo store (for tests) so it reacts to both GPS updates and route changes.
+- `src/lib/geo/store.ts` — `geolocation` (writable, browser Geolocation API) + `createProximityStore` (derived, Haversine distances to all stops). The GPS watch is subscriber-scoped: it starts on first subscribe and `clearWatch` fires on last unsubscribe (writable start/stop notifier). **Accuracy is mode-switched** (`setGeoAccuracyMode('low'|'high')`, default low): App.svelte sets low on the library view (km-scale tour sorting doesn't need GNSS — battery) and high once a tour is open (walker locator + 30m stop proximity); a mode change restarts a running watch with the new `enableHighAccuracy`. The proximity store takes a `Readable<TourStop[]>` plus an optional injectable geo store (for tests) so it reacts to both GPS updates and route changes.
 - `src/lib/theme/store.ts` — `theme` store (light/dark/night). Persists to `localStorage` under `fw-theme` only on explicit user choice; until then it follows system `prefers-color-scheme` changes live. Applies `data-theme` attribute to `<html>` and updates the `theme-color` meta tag. Cycle order: light → dark → night → light.
-- `src/lib/offline/store.ts` — `online` (readable, `navigator.onLine` + events) and the pmtiles cache helpers: `isBasemapCached`, `cacheBasemap` (full-file warm-up GET), `basemapSize` (HEAD). Drives the "save map offline" button on the route view and the per-tour offline badges in the library.
+- `src/lib/offline/store.ts` — `online` (readable, `navigator.onLine` + events) plus the offline warm-up helpers: `isBasemapCached`/`cacheBasemap` (pmtiles full-file GET), and the full-tour layer `isTourCached`/`cacheTourOffline`/`tourOfflineBytes`/`fmtBytes` driven by each route's build-time `OfflineManifest`. Drives the "Save tour offline" button on the route overview, the "Save all tours offline" row in the library rail, and the per-tour offline badges.
 
 ### Theming
 
@@ -347,7 +362,9 @@ is already tokened per theme and takes no filter.
 
 Workbox strategy (defined in `src/lib/pwa/workbox-config.ts`, shared with the runtime offline helpers so cache names cannot drift): app shell + latin web fonts are precached; `globIgnores: ['tours/**']` keeps tour media out of the precache. `.pmtiles` basemaps use a **runtime** `CacheFirst` rule with `rangeRequests: true` (Workbox `RangeRequestsPlugin`) in a dedicated `pmtiles-basemaps` cache. Other `/tours/…` media is runtime-cached with `CacheFirst` (60-day TTL, 200-entry cap).
 
-**PMTiles offline requires an explicit warm-up.** pmtiles always fetches with `Range:` headers, and the Cache API cannot store the resulting 206 responses — so the runtime rule alone never fills the cache. The "save map offline" button on the route view calls `cacheBasemap()` (`src/lib/offline/store.ts`), which does a full-file GET (`cache.add`) storing a 200 response; the `RangeRequestsPlugin` then serves 206 slices from it offline. Do not "simplify" this back to passive runtime caching — it silently breaks offline maps.
+**PMTiles offline requires an explicit warm-up.** pmtiles always fetches with `Range:` headers, and the Cache API cannot store the resulting 206 responses — so the runtime rule alone never fills the cache. `cacheBasemap()` (`src/lib/offline/store.ts`) does a full-file GET (`cache.add`) storing a 200 response; the `RangeRequestsPlugin` then serves 206 slices from it offline. Do not "simplify" this back to passive runtime caching — it silently breaks offline maps.
+
+**Full-tour offline saves (explicit, user-triggered).** Each route carries a build-time `OfflineManifest` (`route.offline`, built in `vite-plugin.ts`): the effective URL of every media file the tour references (the `.webp` variant when one exists — that is what `<picture>`-aware browsers fetch) plus statted byte sizes, so the save buttons show real numbers with no runtime HEAD requests. Files missing at build time are omitted (warming never 404s in an unseeded dev tree). `cacheTourOffline()` warms manifest media into `tour-media` and the basemap via `cacheBasemap()`; `isTourCached()` gates the ✓ states and library badges. UI: the route-overview footer button ("Save tour offline · ~12 MB", `RouteMap.svelte`) and the library rail's "Save all tours offline · ~N MB" row (`TourLibrary.svelte`). Caveat: entries inserted outside Workbox get no ExpirationPlugin timestamp until first SW serve; and `tour-media`'s `maxEntries: 200` is fine for 3 tours but a large saved catalogue could start evicting itself (future: raise the cap or per-tour caches).
 
 **Stale SW hazard:** if the deployed origin or base path changes, browsers with a cached SW will be stranded and show a white screen (the SW intercepts requests for the old paths). Fix: DevTools → Application → Service Workers → Unregister → Storage → Clear site data → hard reload. On iOS: Settings → Safari → Advanced → Website Data → delete the site entry.
 
@@ -369,7 +386,7 @@ Auto-deploys on push to `main` via `.github/workflows/deploy.yml`:
 
 ### Media assets
 
-Real tour media goes in `public/tours/<route-id>/` and is committed to the repo. The demo tours' media (`public/tours/cissbury-ring/`, `public/tours/wolstonbury-hill/`, and `public/tours/mount-caburn/`) is gitignored and generated by `npm run demo:seed` (see `scripts/seed-demo.mjs` — zero-dependency Node ESM with a per-route `ROUTES` spec table, produces PNG/MP3/MP4/GLB). The exceptions are the real committed basemaps, un-ignored in `.gitignore`: `cissbury-ring/cissbury.pmtiles`, `wolstonbury-hill/wolstonbury.pmtiles`, and `mount-caburn/caburn.pmtiles`.
+Real tour media goes in `public/tours/<route-id>/` and is committed to the repo. The demo tours' media (`public/tours/cissbury-ring/`, `public/tours/wolstonbury-hill/`, and `public/tours/mount-caburn/`) is gitignored and generated by `npm run demo:seed` (see `scripts/seed-demo.mjs` — zero-dependency Node ESM with a per-route `ROUTES` spec table, produces PNG/MP3/MP4/GLB). The exceptions are the real committed basemaps, un-ignored in `.gitignore`: `cissbury-ring/cissbury.pmtiles`, `wolstonbury-hill/wolstonbury.pmtiles`, and `mount-caburn/caburn.pmtiles`. Generated `.webp` variants (`scripts/optimize-media.mjs`, part of `npm run build`) are never committed — `/public/tours/**/*.webp` is gitignored.
 
 ### Tests
 
@@ -384,4 +401,4 @@ Run with vitest (`svelteTesting()` in `vitest.config.ts` makes Svelte 5 componen
 - `src/lib/pwa/workbox-config.test.ts` — guards the SW rules (tour media excluded from precache, pmtiles rule is Range-aware CacheFirst)
 - `src/lib/TourStop.test.ts`, `src/lib/TourLibrary.test.ts`, `src/lib/RouteMap.test.ts` — component tests (@testing-library/svelte): proximity footer states incl. stale-fix handling, nav edges, SVG map fallback, the wordmark home button, and the responsive one-DOM layouts. For the Landing: rail (`.tour-list`) + overview (`.tour-overview`) present together, `data-phone-view` follows the `view` prop, selected-vs-idle card `data-state`. For RouteMap-as-overview: `.start-tour[data-tour]` hook + Start/Resume CTA text and the `.tour-overview[data-tour]` root. For TourStop: the phone hero `MapPanel` and the rail `MapPanel` both mount with distinct `id`s (`tour-map-hero` / `tour-map`) and accessible names, since jsdom has no WebGL so both fall back to the SVG schematic — the live map, its markers (current-stop pin, user-location dot), and the recentring behaviour are verified manually in the browser instead. TourStop also covers the lightbox (open from body image and hero button, close via Escape/button/backdrop, image click does not close).
 
-Expected baseline: **123 tests pass, 0 errors** from `npm run check`.
+Expected baseline: **160 tests pass, 0 errors** from `npm run check`.

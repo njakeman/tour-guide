@@ -23,7 +23,13 @@
   import { onMount, untrack } from 'svelte'
   import type { TourRoute } from './types'
   import { geolocation, haversineDistance } from './geo/store'
-  import { online, isBasemapCached } from './offline/store'
+  import {
+    online,
+    isTourCached,
+    cacheTourOffline,
+    tourOfflineBytes,
+    fmtBytes,
+  } from './offline/store'
   import HengeLogo from './HengeLogo.svelte'
   import ThemeToggle from './ThemeToggle.svelte'
   import RouteMap from './RouteMap.svelte'
@@ -54,18 +60,58 @@
     onBack = () => {},
   }: Props = $props()
 
-  // Per-route offline readiness: true once the tour's basemap is in the
-  // SW cache (tour text is always offline — it ships in the app bundle).
+  // Per-route offline readiness: true once EVERYTHING the tour needs offline
+  // (manifest media + basemap) is cached — tour text is always offline, it
+  // ships in the app bundle.
   let offlineReady = $state<Record<string, boolean>>({})
-  onMount(() => {
+  function refreshOfflineReady() {
     for (const route of routes) {
-      if (route.map?.basemap) {
-        void isBasemapCached(route.map.basemap).then((cached) => {
+      if (route.offline || route.map?.basemap) {
+        void isTourCached(route).then((cached) => {
           offlineReady[route.id] = cached
         })
       }
     }
-  })
+  }
+  onMount(refreshOfflineReady)
+
+  // ── Save all tours offline ────────────────────────────────────────────────
+  // Sizes come from each route's build-time OfflineManifest; hidden when
+  // there is nothing to save. Progress counts files across all tours.
+  const saveAllBytes = $derived(routes.reduce((sum, r) => sum + tourOfflineBytes(r), 0))
+  const allSaved = $derived(
+    routes.length > 0 &&
+      routes.every((r) => offlineReady[r.id] || !(r.offline || r.map?.basemap))
+  )
+  let savingAll = $state(false)
+  let saveAllFailed = $state(false)
+  let saveAllProgress = $state<{ done: number; total: number } | null>(null)
+
+  async function saveAllOffline() {
+    if (savingAll || allSaved) return
+    savingAll = true
+    saveAllFailed = false
+    const perRoute = routes.map(
+      (r) => (r.offline?.mediaUrls.length ?? 0) + (r.map?.basemap ? 1 : 0)
+    )
+    const grandTotal = perRoute.reduce((a, b) => a + b, 0)
+    let base = 0
+    saveAllProgress = { done: 0, total: grandTotal }
+    try {
+      for (let i = 0; i < routes.length; i++) {
+        await cacheTourOffline(routes[i], (done) => {
+          saveAllProgress = { done: base + done, total: grandTotal }
+        })
+        base += perRoute[i]
+      }
+    } catch {
+      saveAllFailed = true
+    } finally {
+      savingAll = false
+      saveAllProgress = null
+      refreshOfflineReady()
+    }
+  }
 
   // Position used for sorting and the distance badges. It follows the live GPS
   // fix only once the user has moved past a threshold, so the visible card
@@ -166,6 +212,32 @@
         <p class="tours-subtitle">
           Prehistoric South Downs{#if nearbyCount > 0} · {nearbyCount} nearby{/if}
         </p>
+
+        <!-- Save every tour's map + media for offline use (see OfflineManifest) -->
+        {#if saveAllBytes > 0}
+          <button
+            class="save-all"
+            class:save-all--done={allSaved}
+            onclick={saveAllOffline}
+            disabled={savingAll || allSaved}
+            aria-label={
+              allSaved ? 'All tours saved offline'
+              : savingAll ? 'Saving all tours offline'
+              : saveAllFailed ? 'Retry saving all tours offline'
+              : `Save all tours offline · ~${fmtBytes(saveAllBytes)}`
+            }
+          >
+            <span class="save-all-icon" aria-hidden="true">
+              {#if savingAll}…{:else if allSaved}✓{:else}⤓{/if}
+            </span>
+            <span class="save-all-label">
+              {#if savingAll && saveAllProgress}Saving… {saveAllProgress.done}/{saveAllProgress.total}
+              {:else if allSaved}All tours offline
+              {:else if saveAllFailed}Retry saving tours
+              {:else}Save all tours offline · ~{fmtBytes(saveAllBytes)}{/if}
+            </span>
+          </button>
+        {/if}
       </div>
 
       <div class="tour-list">
@@ -366,6 +438,44 @@
     margin: 6px 0 0;
     font-size: 0.84375rem;
     color: var(--muted);
+  }
+
+  /* Save-all-offline row — prominent, full rail width */
+  .save-all {
+    margin-top: 12px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--olive);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: opacity 0.15s;
+  }
+
+  .save-all:disabled { cursor: default; }
+
+  .save-all--done {
+    border-color: var(--olive);
+    opacity: 0.85;
+  }
+
+  .save-all-icon {
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  .save-all-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* Segmented filter */
