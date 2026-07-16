@@ -64,6 +64,54 @@ describe('compassHeading store', () => {
   })
 })
 
+describe('compassHeading — screen-rotation compensation', () => {
+  // Sensors report in the device (portrait-top) frame; landscape must be
+  // corrected by the screen angle or the cone reads ±90° off (seen on iPhone).
+
+  it('adds screen.orientation.angle on the iOS webkit path', () => {
+    vi.stubGlobal('screen', { orientation: { angle: 270 } })
+    let value: number | null = null
+    const unsub = compassHeading.subscribe((v) => (value = v))
+    // Device rotated clockwise: top edge points east (90) but user faces north
+    fireOrientation('deviceorientation', { webkitCompassHeading: 90 })
+    expect(value).toBe(0)
+    unsub()
+  })
+
+  it('adds screen.orientation.angle on the Android absolute path', () => {
+    vi.stubGlobal('screen', { orientation: { angle: 270 } })
+    let value: number | null = null
+    const unsub = compassHeading.subscribe((v) => (value = v))
+    // alpha 270 → raw device heading 90; +270 screen angle → true 0
+    fireOrientation('deviceorientationabsolute', { absolute: true, alpha: 270 })
+    expect(value).toBe(0)
+    unsub()
+  })
+
+  it('compensates the opposite rotation direction symmetrically', () => {
+    vi.stubGlobal('screen', { orientation: { angle: 90 } })
+    let value: number | null = null
+    const unsub = compassHeading.subscribe((v) => (value = v))
+    fireOrientation('deviceorientation', { webkitCompassHeading: 270 })
+    expect(value).toBe(0)
+    unsub()
+  })
+
+  it('falls back to legacy window.orientation, normalising -90 to 270', () => {
+    vi.stubGlobal('screen', {}) // no .orientation (old iOS Safari)
+    ;(window as unknown as { orientation?: number }).orientation = -90
+    try {
+      let value: number | null = null
+      const unsub = compassHeading.subscribe((v) => (value = v))
+      fireOrientation('deviceorientation', { webkitCompassHeading: 90 })
+      expect(value).toBe(0)
+      unsub()
+    } finally {
+      delete (window as unknown as { orientation?: number }).orientation
+    }
+  })
+})
+
 describe('compass permission flow', () => {
   it('needs no permission when requestPermission is absent (Android/jsdom)', async () => {
     expect(compassNeedsPermission()).toBe(false)

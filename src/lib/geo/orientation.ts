@@ -78,9 +78,30 @@ export async function requestCompassPermission(): Promise<boolean> {
 }
 
 /**
+ * Current UI rotation in degrees (0/90/180/270). The orientation sensors
+ * report in the DEVICE frame — the heading of the physical portrait-top
+ * edge — so a phone held in landscape reads ±90° off unless corrected by
+ * the screen rotation. Verified on iPhone: portrait was right, landscape
+ * was ±90° with the sign following the rotation direction. Do not
+ * "simplify" this away.
+ */
+function screenAngle(): number {
+  if (typeof screen !== 'undefined' && screen.orientation) {
+    return screen.orientation.angle
+  }
+  // Legacy iOS Safari (< 16.4): window.orientation is 0 / 90 / -90 / 180
+  if (typeof window !== 'undefined') {
+    const legacy = (window as unknown as { orientation?: unknown }).orientation
+    if (typeof legacy === 'number') return ((legacy % 360) + 360) % 360
+  }
+  return 0
+}
+
+/**
  * Compass heading in degrees clockwise from north, or null while unknown.
- * Updates are thresholded to whole-degree changes — deviceorientation can
- * fire at 60Hz and the consumers rotate DOM elements.
+ * Screen-rotation compensated (see screenAngle). Updates are thresholded to
+ * whole-degree changes — deviceorientation can fire at 60Hz and the
+ * consumers rotate DOM elements.
  */
 export const compassHeading: Readable<number | null> = readable<number | null>(
   null,
@@ -99,13 +120,15 @@ export const compassHeading: Readable<number | null> = readable<number | null>(
     // iOS: webkitCompassHeading on the plain event (post-permission)
     const onOrientation = (e: Event) => {
       const webkit = (e as OrientationEventLike).webkitCompassHeading
-      if (typeof webkit === 'number' && Number.isFinite(webkit)) update(webkit)
+      if (typeof webkit === 'number' && Number.isFinite(webkit)) {
+        update((webkit + screenAngle()) % 360)
+      }
     }
     // Android/Chromium: absolute alpha, no permission needed
     const onAbsolute = (e: Event) => {
       const ev = e as DeviceOrientationEvent
       if (ev.absolute && typeof ev.alpha === 'number' && Number.isFinite(ev.alpha)) {
-        update((360 - ev.alpha) % 360)
+        update((360 - ev.alpha + screenAngle()) % 360)
       }
     }
 

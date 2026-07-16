@@ -333,7 +333,10 @@ travel heading. Subscriber-scoped store like `geolocation`. Platform split:
 Android fires `deviceorientationabsolute` unprompted; iOS needs a one-tap
 `DeviceOrientationEvent.requestPermission()` from a user gesture — MapPanel
 shows an "Enable compass" overlay button, remembers a grant in localStorage
-(`fw-compass`), and re-requests silently on later mounts. The stop footer
+(`fw-compass`), and re-requests silently on later mounts. Headings are
+compensated by `screen.orientation.angle` (legacy `window.orientation`
+fallback) — the sensors report in the device's portrait-top frame, so
+landscape reads ±90° off without it (verified on iPhone); do not remove. The stop footer
 shows "320m NE ↑ to this stop": cardinal always (bearing computed in
 App.svelte via `initialBearing`), the arrow only when the compass is live
 (rotated device-relative: bearing − facing).
@@ -433,4 +436,4 @@ Run with vitest (`svelteTesting()` in `vitest.config.ts` makes Svelte 5 componen
 - `src/lib/pwa/workbox-config.test.ts` — guards the SW rules (tour media excluded from precache, pmtiles rule is Range-aware CacheFirst)
 - `src/lib/TourStop.test.ts`, `src/lib/TourLibrary.test.ts`, `src/lib/RouteMap.test.ts` — component tests (@testing-library/svelte): proximity footer states incl. stale-fix handling, nav edges, SVG map fallback, the wordmark home button, and the responsive one-DOM layouts. For the Landing: rail (`.tour-list`) + overview (`.tour-overview`) present together, `data-phone-view` follows the `view` prop, selected-vs-idle card `data-state`. For RouteMap-as-overview: `.start-tour[data-tour]` hook + Start/Resume CTA text and the `.tour-overview[data-tour]` root. For TourStop: the phone hero `MapPanel` and the rail `MapPanel` both mount with distinct `id`s (`tour-map-hero` / `tour-map`) and accessible names, since jsdom has no WebGL so both fall back to the SVG schematic — the live map, its markers (current-stop pin, user-location dot), and the recentring behaviour are verified manually in the browser instead. TourStop also covers the lightbox (open from body image and hero button, close via Escape/button/backdrop, image click does not close).
 
-Expected baseline: **191 tests pass, 0 errors** from `npm run check`.
+Expected baseline: **195 tests pass, 0 errors** from `npm run check`.
