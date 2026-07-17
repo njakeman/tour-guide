@@ -146,6 +146,15 @@ export function buildRouteLineData(
 }
 
 /**
+ * Should the "reset to north" control show? True once the map has been
+ * rotated or tilted off its default 2D north-up view. A small epsilon
+ * avoids flicker from the rest position's floating-point noise.
+ */
+export function isOffNorth(bearing: number, pitch: number): boolean {
+  return Math.abs(bearing) > 0.5 || pitch > 0.5
+}
+
+/**
  * Is this map event the "tour basemap is renderable" reveal signal?
  *
  * `sourcedata` is per-source: MapLibre attaches `isSourceLoaded` from that

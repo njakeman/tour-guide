@@ -84,6 +84,7 @@
     isBasemapRenderableEvent,
     buildRouteLineData,
     ROUTE_LINE_SOURCE_ID,
+    isOffNorth,
   } from './map/style'
   import {
     createStopMarkerElement,
@@ -139,6 +140,27 @@
     void requestCompassPermission().then((granted) => {
       if (granted) showCompassEnable = false
     })
+  }
+
+  // Live map bearing/pitch (rotate/pitch gestures) — drives the reset-to-
+  // north control. MapLibre drops its own 'rotate'/'pitch' listeners on
+  // map.remove(), so no manual unsubscribe is needed (unlike the geo stores).
+  let mapBearing = $state(0)
+  let mapPitch = $state(0)
+  /** True once a live GPS fix has arrived — drives the centre-on-me control. */
+  let hasFix = $state(false)
+
+  // Mirrors the onMount-scoped `lastFix` used for popup distances — read
+  // from the template, which can't see that closure-local variable.
+  let lastFixForButton: GeoPosition | null = null
+
+  function resetNorth() {
+    mapInstance?.easeTo({ bearing: 0, pitch: 0, duration: 300 })
+  }
+
+  function centreOnMe() {
+    if (!lastFixForButton) return
+    mapInstance?.easeTo({ center: [lastFixForButton.lng, lastFixForButton.lat], duration: 500 })
   }
   /** True once the first frame has rendered — hides the SVG loading state */
   let mapReady = $state(false)
@@ -346,6 +368,11 @@
 
           ensureRouteLayer()
 
+          // Reset-to-north control state — MapLibre drops its own listeners
+          // on map.remove(), no manual unsubscribe needed.
+          mapInstance.on('rotate', () => { mapBearing = mapInstance?.getBearing() ?? 0 })
+          mapInstance.on('pitch', () => { mapPitch = mapInstance?.getPitch() ?? 0 })
+
           // Numbered chalk-disc stop markers (design handoff: "Map Markers").
           // Pin tip at the element's bottom-centre → anchor 'bottom'. Tap
           // opens the popup; tapping the popup navigates to the stop.
@@ -420,6 +447,8 @@
             })
             unsubscribeGeo = geolocation.subscribe((state) => {
               lastFix = state.position
+              lastFixForButton = state.position
+              hasFix = state.position != null
               if (!state.position) {
                 el.style.display = 'none'
                 return
@@ -612,6 +641,34 @@
       ◮ Enable compass
     </button>
   {/if}
+  {#if mapReady && !mapFailed}
+    <div class="map-controls">
+      {#if isOffNorth(mapBearing, mapPitch)}
+        <!-- Rotate/tilt gestures stay enabled; this snaps back to the
+             default north-up 2D view (Apple/Google Maps compass pattern) -->
+        <button
+          class="map-ctrl reset-north"
+          type="button"
+          onclick={resetNorth}
+          aria-label="Reset map to north"
+          title="Reset map to north"
+        >
+          <span style="display:inline-block; transform: rotate({-mapBearing}deg)">N</span>
+        </button>
+      {/if}
+      {#if showUserLocation && hasFix}
+        <!-- Manual recentre only — the map never auto-follows the fix (the
+             offline pmtiles cache only covers a fixed area) -->
+        <button
+          class="map-ctrl locate-me"
+          type="button"
+          onclick={centreOnMe}
+          aria-label="Centre map on my location"
+          title="Centre map on my location"
+        >⌖</button>
+      {/if}
+    </div>
+  {/if}
   {#if mapFailed || !mapReady}
     <!-- SVG schematic: fallback (no basemap, no WebGL, load error) and
          loading state while maplibre-gl is dynamically imported. When a real
@@ -741,5 +798,38 @@
     padding: 7px 10px;
     cursor: pointer;
     backdrop-filter: blur(3px);
+  }
+
+  /* Reset-to-north + centre-on-me: top-right stack (bottom-right is the
+     attribution ⓘ, bottom-left is the transient compass-permission button) */
+  .map-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .map-ctrl {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--text);
+    background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    backdrop-filter: blur(3px);
+  }
+
+  .reset-north span {
+    transition: transform 0.2s ease;
   }
 </style>

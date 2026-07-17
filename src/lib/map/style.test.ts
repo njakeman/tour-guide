@@ -259,3 +259,28 @@ describe('buildRouteLineData', () => {
     expect(ROUTE_LINE_SOURCE_ID).toBe('route-line')
   })
 })
+
+// ---------------------------------------------------------------------------
+// isOffNorth
+// ---------------------------------------------------------------------------
+import { isOffNorth } from './style'
+
+describe('isOffNorth', () => {
+  it('is false at rest (0 bearing, 0 pitch)', () => {
+    expect(isOffNorth(0, 0)).toBe(false)
+  })
+
+  it('tolerates floating-point noise around the rest position', () => {
+    expect(isOffNorth(0.01, 0)).toBe(false)
+    expect(isOffNorth(-0.2, 0.3)).toBe(false)
+  })
+
+  it('is true once rotated off north', () => {
+    expect(isOffNorth(45, 0)).toBe(true)
+    expect(isOffNorth(-10, 0)).toBe(true)
+  })
+
+  it('is true once pitched/tilted', () => {
+    expect(isOffNorth(0, 10)).toBe(true)
+  })
+})

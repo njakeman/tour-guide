@@ -300,9 +300,23 @@ GPS fix as the surveyor's-reticle locator (88px, anchored centre) — hidden
 until the first fix, then `marker.setLngLat()` on every update. The heading
 cone rotates to `position.heading` (degrees from north; the map is north-up —
 only the cone turns) and hides when no bearing is available. **The map is
-never recentred on the fix** — the offline PMTiles cache only covers a fixed
-area, so the viewport must stay under the user's control; panning away from
-the locator is expected and does not snap back.
+never *automatically* recentred on the fix** — the offline PMTiles cache
+only covers a fixed area, so the viewport must stay under the user's
+control; panning away from the locator is expected and does not snap back.
+The `⌖` **centre-on-me** control (top-right, `.map-controls`, appears once a
+fix exists) is the deliberate exception: a user-tapped recentre is "under
+the user's control" by definition. Independent of the north-reset control
+below — one action, one predictable effect.
+
+**Reset to north:** rotate/tilt touch gestures stay enabled (MapLibre's
+defaults), but drifting off the default 2D north-up view surfaces a compass
+control (`.reset-north`, top-right — same Apple/Google Maps pattern) whose
+"N" glyph stays rotated to true north; tapping `easeTo({ bearing: 0, pitch:
+0 })` snaps back. Visibility is `isOffNorth(bearing, pitch)`
+(`src/lib/map/style.ts`, epsilon-gated so the gesture's floating-point rest
+position doesn't flicker the button). MapLibre drops its own `rotate`/`pitch`
+listeners on `map.remove()`, so — unlike the geo/compass stores — no manual
+unsubscribe is needed in MapPanel's teardown.
 
 **Phone stop-hero (`TourStop.svelte`):** at phone size (narrow OR short) the
 stop's hero plate is a live `MapPanel` centred on the current stop (`center`,
@@ -436,4 +450,4 @@ Run with vitest (`svelteTesting()` in `vitest.config.ts` makes Svelte 5 componen
 - `src/lib/pwa/workbox-config.test.ts` — guards the SW rules (tour media excluded from precache, pmtiles rule is Range-aware CacheFirst)
 - `src/lib/TourStop.test.ts`, `src/lib/TourLibrary.test.ts`, `src/lib/RouteMap.test.ts` — component tests (@testing-library/svelte): proximity footer states incl. stale-fix handling, nav edges, SVG map fallback, the wordmark home button, and the responsive one-DOM layouts. For the Landing: rail (`.tour-list`) + overview (`.tour-overview`) present together, `data-phone-view` follows the `view` prop, selected-vs-idle card `data-state`. For RouteMap-as-overview: `.start-tour[data-tour]` hook + Start/Resume CTA text and the `.tour-overview[data-tour]` root. For TourStop: the phone hero `MapPanel` and the rail `MapPanel` both mount with distinct `id`s (`tour-map-hero` / `tour-map`) and accessible names, since jsdom has no WebGL so both fall back to the SVG schematic — the live map, its markers (current-stop pin, user-location dot), and the recentring behaviour are verified manually in the browser instead. TourStop also covers the lightbox (open from body image and hero button, close via Escape/button/backdrop, image click does not close).
 
-Expected baseline: **195 tests pass, 0 errors** from `npm run check`.
+Expected baseline: **199 tests pass, 0 errors** from `npm run check`.
