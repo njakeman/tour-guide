@@ -64,6 +64,30 @@ fallback (also used on WebGL failure / load error); the save-offline button
 renders only when the route has something to save (an `offline` manifest
 and/or a basemap).
 
+**Importing a survey export (`scripts/import-survey.mjs`, `npm run
+tour:import -- <zip>`):** generates a tour skeleton — `tour.yaml` + one stop
+per surveyed feature + photos into `public/tours/<id>/` — from a field-survey
+app's export zip (format: `survey-export-zip-spec.md` if present at the repo
+root; untracked, ask the user for it if a change needs the spec). Zero-dependency
+zip reader (central-directory + `zlib.inflateRawSync`, matching
+`seed-demo.mjs`'s style) because the export's entries use data descriptors —
+local file headers report size 0, so sizes must come from the central
+directory. Every prose field is emitted as a literal `TODO`; the `map:` block
+always ships commented out (no `.pmtiles` exists yet — emitting `map.basemap`
+without one would fail `content.test.ts`'s offline-manifest assertion).
+Position mapping: `Point`/other → `properties.lat/lon`; `LineString` → first
+coordinate (where the walk starts); `Polygon` → `properties.lat/lon`, which
+the survey app itself already populates with the ring centroid. Audio is
+skipped (reported, not copied — the export's `.webm` doesn't play in
+Safari). The script re-validates its own output against the same invariants
+`content.test.ts` enforces before exiting, so a broken skeleton fails loudly
+at generation time rather than silently at the next `npm run test`. See
+`AUTHORING.md` → "Importing a survey export" for the user-facing walkthrough
+and `src/lib/import/survey-import.test.ts` for coverage (lives under `src/`
+because `vitest.config.ts` only discovers `src/**/*.{test,spec}.*`; the
+script itself carries `// @ts-nocheck` since it's plain JS pulled into the
+`checkJs` graph only via that test's import).
+
 ### Body media at runtime: 3D models + image lightbox
 
 Stop bodies are injected via `{@html stop.bodyHtml}` in `TourStop.svelte`, so
@@ -448,6 +472,7 @@ Run with vitest (`svelteTesting()` in `vitest.config.ts` makes Svelte 5 componen
 - `src/lib/map/markers.test.ts` — the map-marker DOM builders: numbered stop pin (aria-label, HTML number overlay, title escaping), walker locator heading rotation/hiding, popup eyebrow distance formatting and in-place updates. The live map wiring (marker anchors, popup open/close, locator following the fix) is verified manually in the browser — jsdom has no WebGL.
 - `src/lib/media/models.test.ts` — `hydrateModels` with an injected fake loader: no import when no stub, stub → `<model-viewer>` upgrade, loader-failure fallback, idempotence, retry after failure. **Never put `.media-model` HTML in component-test fixtures** — that would trigger the real `@google/model-viewer` import under jsdom.
 - `src/lib/pwa/workbox-config.test.ts` — guards the SW rules (tour media excluded from precache, pmtiles rule is Range-aware CacheFirst)
+- `src/lib/import/survey-import.test.ts` — the survey-export importer (`scripts/import-survey.mjs`): zip reading (stored/deflated entries, the data-descriptor size-0-local-header case), position mapping per geometry type, slug/title/photo derivation, and a full writePlan → validateGeneratedRoute round trip against a temp directory using zips built in-memory with `zlib` (no binary fixtures committed)
 - `src/lib/TourStop.test.ts`, `src/lib/TourLibrary.test.ts`, `src/lib/RouteMap.test.ts` — component tests (@testing-library/svelte): proximity footer states incl. stale-fix handling, nav edges, SVG map fallback, the wordmark home button, and the responsive one-DOM layouts. For the Landing: rail (`.tour-list`) + overview (`.tour-overview`) present together, `data-phone-view` follows the `view` prop, selected-vs-idle card `data-state`. For RouteMap-as-overview: `.start-tour[data-tour]` hook + Start/Resume CTA text and the `.tour-overview[data-tour]` root. For TourStop: the phone hero `MapPanel` and the rail `MapPanel` both mount with distinct `id`s (`tour-map-hero` / `tour-map`) and accessible names, since jsdom has no WebGL so both fall back to the SVG schematic — the live map, its markers (current-stop pin, user-location dot), and the recentring behaviour are verified manually in the browser instead. TourStop also covers the lightbox (open from body image and hero button, close via Escape/button/backdrop, image click does not close).
 
-Expected baseline: **199 tests pass, 0 errors** from `npm run check`.
+Expected baseline: **231 tests pass, 0 errors** from `npm run check`.

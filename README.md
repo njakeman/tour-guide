@@ -201,6 +201,69 @@ The tour appears automatically in the library — no code changes needed.
 
 ---
 
+## Importing a survey export
+
+Survey export zips are produced by the companion field-survey app,
+**[survey-tool](https://github.com/njakeman/survey-tool/)** — use it to
+capture stations (GPS position, notes, photos, voice notes) in the field,
+then export a session as a zip. If your content comes from that app
+(`session.geojson` + `photos/` + `audio/` per session), you don't have to
+build the tour skeleton by hand:
+
+```bash
+npm run tour:import -- ./my-survey-export.zip
+```
+
+You'll be prompted for a human-readable tour name and a route id, then it
+generates `content/routes/<id>/tour.yaml` and one stop `.md` per surveyed
+observation. **Yes, it imports the photos** — the first photo per stop
+becomes the hero image, the rest are appended in the body, and all of them
+are copied into `public/tours/<id>/` as real files ready to commit (not
+placeholders). Voice notes are reported and skipped (not imported). See
+**[AUTHORING.md → Importing a survey export](AUTHORING.md#importing-a-survey-export)**
+for the full field-by-field mapping.
+
+### Editing what it generates
+
+Nothing it produces is finished — every field that needs prose is a literal
+`TODO`. Open the generated files and fill in:
+
+- **`tour.yaml`** — `description`, `subtitle`, `total_distance`, `duration`,
+  and (once you have a `.pmtiles` file) uncomment the `map:` block.
+- **Each stop file** — `era`, `walk_time`, `evidence`, `interpretation`, and
+  photo captions.
+
+Then `npm run check && npm run test` — the new route is picked up by the
+existing content tests automatically — and `npm run dev` to see it in the
+library.
+
+### Gotchas — renaming things after import
+
+The importer bakes several values into the generated files at import time.
+Renaming things afterwards can quietly break what it wrote:
+
+- **Renaming the route id** (the `content/routes/<id>` / `public/tours/<id>`
+  folder name) breaks every generated path — hero `src`, inline photo `src`,
+  and (once uncommented) `map.basemap` all point at `/tours/<old-id>/...`.
+  Rename both folders together and find/replace the old id across every stop
+  file.
+- **Renaming a stop's `id:`** must be mirrored in `tour.yaml`'s `stops:` list
+  entry (and ideally the `NN-<id>.md` filename) — the usual three-places rule
+  for any stop, easy to forget here since the importer auto-generates ids
+  from the surveyor's note text.
+- **Renaming a stop's `title:`** does *not* rename its photo files — they
+  keep the `NN-<original-slug>-<k>.jpg` name from import time. This is
+  cosmetic only (the hero/body paths still point at the right file), but can
+  be surprising if you go looking for a file matching the current title.
+- **Re-running the importer on the same zip with `--force`** regenerates
+  every file from scratch — it overwrites, it does not merge. Any hand-edits
+  (prose, renamed ids, an uncommented `map:` block) are lost. Only safe
+  before you've started editing.
+- **`route_name`** (the tour's display title) is freely editable with no
+  knock-on effect — nothing else derives from it after generation.
+
+---
+
 ## Tests
 
 ```bash

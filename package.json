@@ -11,7 +11,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "test": "vitest run",
     "demo:seed": "node scripts/seed-demo.mjs",
-    "demo": "node scripts/seed-demo.mjs && vite"
+    "demo": "node scripts/seed-demo.mjs && vite",
+    "tour:import": "node scripts/import-survey.mjs"
   },
   "dependencies": {
     "@fontsource/hanken-grotesk": "^5.2.8",

@@ -334,6 +334,59 @@ includes `pmtiles`).
 
 ---
 
+## Importing a survey export
+
+If your content comes from a field-survey app that exports one zip per
+session (`session.geojson` + `photos/` + `audio/` — see
+`survey-export-zip-spec.md` if you have it), `npm run tour:import` turns
+that zip into a tour skeleton automatically: one stop per surveyed
+observation, real coordinates, real photos copied into `public/tours/`.
+Nothing it generates is finished prose — every field that needs writing is
+left as a literal `TODO`, ready for you to fill in.
+
+```bash
+npm run tour:import -- ./my-survey-export.zip
+```
+
+You'll be prompted for a human-readable tour name (survey session names
+tend to be undescriptive, e.g. "Multiple photo test") and a route id — the
+directory name under `content/routes/` and `public/tours/`. Flags skip the
+prompts for scripting: `--name`, `--id`, `--subtitle`, and `--force` to
+overwrite a previous import of the same zip in place.
+
+What you get, per surveyed observation ("feature"):
+
+- **Position** — a `Point` or a walked `LineString` uses its first
+  coordinate; a walked `Polygon` boundary uses the survey app's own
+  centroid. Either way it lands in `lat`/`lng` in the stop frontmatter.
+- **Title** — the first sentence of the surveyor's note, or their feature
+  label, or "Stop N" if neither exists.
+- **Photos** — the first becomes the stop's `hero`; the rest are appended
+  under a "Photographs" heading in the body, all copied into
+  `public/tours/<id>/` (committed to git, same as any real tour media).
+- **`evidence`** — starts with a TODO placeholder plus the surveyor's note
+  verbatim, so the field is never empty (required by `content.test.ts`).
+- A `survey:` block in the frontmatter — `obs_id`, `recorded_at`,
+  `gps_accuracy_m`, etc. — kept for provenance. The app ignores it; edit or
+  delete it freely.
+
+**Not imported:**
+- **Audio.** Voice notes are reported in the console summary and skipped —
+  the survey app's `.webm` format doesn't play in Safari. Re-add manually
+  as `.m4a` if you want them.
+- **A basemap.** The `map:` block ships commented out in `tour.yaml`, since
+  there's no `.pmtiles` file to point it at — see "Adding a basemap to a new
+  tour" above. Until you add one, the tour renders the SVG schematic map.
+- **Re-import / merge.** Running the importer again with `--force`
+  overwrites the generated files; it does not merge your hand-written
+  changes with a newer export of the same session.
+
+After importing, run `npm run check && npm run test` — the new route is
+picked up by the existing content tests automatically — then `npm run dev`
+to see it in the library.
+
+---
+
 ## Adding a second tour
 
 1. Create `content/routes/<new-tour>/tour.yaml` and `stops/` directory.
