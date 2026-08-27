@@ -13,6 +13,7 @@ survey:
   obs_id: "01M11VTR84WKW6PAAHDPYT949J"
   recorded_at: "2026-08-27T15:01:19.748Z"
   position_source: "trace"
+  feature_label: ""
   gps_accuracy_m: 2.320649966946388
   heading_deg: null
   trace_length_m: 27.86851361483454
@@ -22,8 +23,6 @@ interpretation: |
   TODO — add interpretation once the evidence is written.
 ---
 
-# Stop 8
-
 TODO — write the story of this stop.
 
-<!-- TODO: no photo was captured for this stop — add a hero image above. -->
+<!-- TODO: no photo was captured for this stop — add one. -->
