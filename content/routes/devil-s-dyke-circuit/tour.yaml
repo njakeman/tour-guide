@@ -1,0 +1,36 @@
+route_name: "Devil’s Dyke circuit"
+subtitle: "A quick test to capture a walk around the duke with the doggie"
+description: "TODO — write a 1-2 sentence description of this tour."
+icon: "🚩"  # TODO — pick an icon
+total_distance: "TODO — total distance"
+duration: "TODO — duration"
+
+# TODO — add a PMTiles basemap (public/tours/devil-s-dyke-circuit/devil-s-dyke-circuit.pmtiles), then uncomment:
+# map:
+#   basemap: "/tours/devil-s-dyke-circuit/devil-s-dyke-circuit.pmtiles"
+#   center: [-0.209122, 50.885789]
+#   zoom: 16
+
+stops:
+  - "this-is-the-view-looking-west-towards-bulking-hill"
+  - "from-here-you-can-also-see-new-timber-hill"
+  - "here-we-are-looking-back-towards-the-devil-s-cops"
+  - "this-is-a-hawks-bit-also-some-wild"
+  - "looking-east-we-can-see-the-ramp-parts-of-the-iron-age-h"
+  - "from-this-point-the-ramp-parts-are-easy-to-trace"
+  - "stop-7"
+  - "stop-8"
+  - "down-in-the-world-is-a-really-fancy-looking"
+  - "i-think-it-was-the-east-end-of-the-hill-ford-and-then-we"
+  - "looking-west-from-the-eastern-end-of-the-hill-thought-the"
+  - "from-this-day-here-you-can-take-the-bath-down-to-boiling"
+  - "near-the-path-splits-into-two-and-you-can-take-the-high-r"
+  - "babe-we-can-see-you-down-and-see-the-bandage-was-crazy-l"
+  - "summer-s-evening-you-can-see-her-girls-at-hostel"
+  - "is-the-amazing-caterpillar"
+  - "this-is-some-hoy-ground-seal"
+  - "this-is-where-we-re-removing-the-squeaky"
+  - "lying-downkirsty-is-taking-a-few-of-these-things"
+  - "from-here-we-re-going-to-follow-this-part-up-to-the-devil"
+  - "keep-taking-the-path-up-the-hill"
+  - "this-is-the-gate-we-need-to-go-into-to-go-through-the-cop"

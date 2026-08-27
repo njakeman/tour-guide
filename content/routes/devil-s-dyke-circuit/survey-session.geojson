@@ -1,0 +1,992 @@
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          -0.21246307991230665,
+          50.885465211726036
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 214.35715414583683,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T14:54:12.000Z",
+        "gps_accuracy_m": 4.1742478979787485,
+        "heading_accuracy_deg": 15.021385192871094,
+        "heading_deg": 269.60992431640625,
+        "lat": 50.885465211726036,
+        "lon": -0.21246307991230665,
+        "note": "This is the view looking west towards bulking Hill",
+        "obs_id": "01M11VDPQRJ61B038APDA6QGG2",
+        "os_grid_ref": "TQ 25833 11075",
+        "photo": "01M11VDPQRJ61B038APDA6QGG3.jpg",
+        "photos": [
+          {
+            "photo": "01M11VDPQRJ61B038APDA6QGG3.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T14:54:12.216Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.2118873327298507,
+          50.88585609670817
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 216.12953675258905,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T14:55:47.000Z",
+        "gps_accuracy_m": 2.1451169529231864,
+        "heading_accuracy_deg": 11.280808448791504,
+        "heading_deg": 38.74254608154297,
+        "lat": 50.88585609670817,
+        "lon": -0.2118873327298507,
+        "note": "From here you can also see NEW Timber hill",
+        "obs_id": "01M11VGKP072CE86N70M5AM63A",
+        "os_grid_ref": "TQ 25872 11119",
+        "photo": "01M11VGKP072CE86N70M5AM63B.jpg",
+        "photos": [
+          {
+            "photo": "01M11VGKP072CE86N70M5AM63B.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T14:55:47.392Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.2110099295145334,
+          50.88612699152817
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 215.4471740219742,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T14:57:18.000Z",
+        "gps_accuracy_m": 2.1183080290085314,
+        "heading_accuracy_deg": 10,
+        "heading_deg": 344.53546142578125,
+        "lat": 50.88612699152817,
+        "lon": -0.2110099295145334,
+        "note": "Here we are looking back towards the devil’s cops",
+        "obs_id": "01M11VKCS42EMTTNX4YGWTX844",
+        "os_grid_ref": "TQ 25933 11151",
+        "photo": "01M11VKCS42EMTTNX4YGWTX845.jpg",
+        "photos": [
+          {
+            "photo": "01M11VKCS42EMTTNX4YGWTX845.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T14:57:18.628Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.21068099278269278,
+          50.886251807000875
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3.05177633489157,
+        "altitude_m": 214.66904109343886,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T14:58:51.000Z",
+        "gps_accuracy_m": 3.859679405465081,
+        "heading_accuracy_deg": 10,
+        "heading_deg": 329.17974853515625,
+        "lat": 50.886251807000875,
+        "lon": -0.21068099278269278,
+        "note": "This is a Hawks bit also some wild",
+        "obs_id": "01M11VP77H276QPTM3F6WQZV3R",
+        "os_grid_ref": "TQ 25956 11165",
+        "photo": "01M11VP77JF1X0AX7FZNAKGYVZ.jpg",
+        "photos": [
+          {
+            "photo": "01M11VP77JF1X0AX7FZNAKGYVZ.jpg",
+            "ref_photo": null
+          },
+          {
+            "photo": "01M11VP77JF1X0AX7FZNAKGYW0.jpg",
+            "ref_photo": null
+          },
+          {
+            "photo": "01M11VQ0RHA593SW21FJRTFMTH.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T14:58:51.250Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.21037821476682614,
+          50.886355965373575
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3.1466601623213295,
+        "altitude_m": 213.43940580449998,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T14:59:58.000Z",
+        "gps_accuracy_m": 3.8491609397686473,
+        "heading_accuracy_deg": 12.666378021240234,
+        "heading_deg": 55.257999420166016,
+        "lat": 50.886355965373575,
+        "lon": -0.21037821476682614,
+        "note": "Looking east, we can see the ramp parts of the Iron Age Hill thought",
+        "obs_id": "01M11VR96KSAK62ZYW6S4F8TNA",
+        "os_grid_ref": "TQ 25977 11177",
+        "photo": "01M11VR96KSAK62ZYW6S4F8TNB.jpg",
+        "photos": [
+          {
+            "photo": "01M11VR96KSAK62ZYW6S4F8TNB.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T14:59:58.803Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.20941585596674728,
+          50.88669583744333
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 207.73877982702106,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:01:11.000Z",
+        "gps_accuracy_m": 2.1511473262423415,
+        "heading_accuracy_deg": 10,
+        "heading_deg": 51.13959503173828,
+        "lat": 50.88669583744333,
+        "lon": -0.20941585596674728,
+        "note": "From this point, the ramp parts are easy to trace",
+        "obs_id": "01M11VTGJBDG674DHRB6A7WS63",
+        "os_grid_ref": "TQ 26044 11217",
+        "photo": null,
+        "photos": [],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:01:11.883Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.2093898179150395,
+          50.88670712056979
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 207.64507639594376,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:01:17.000Z",
+        "gps_accuracy_m": 2.1256186104672317,
+        "heading_accuracy_deg": 10,
+        "heading_deg": 42.17851257324219,
+        "lat": 50.88670712056979,
+        "lon": -0.2093898179150395,
+        "note": "",
+        "obs_id": "01M11VTNPEPSGG67ZJ11H6W2GT",
+        "os_grid_ref": "TQ 26046 11218",
+        "photo": null,
+        "photos": [],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:01:17.134Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            -0.20973066314074806,
+            50.886579394207224
+          ],
+          [
+            -0.20967232646302064,
+            50.88661478026724
+          ],
+          [
+            -0.20960353448432267,
+            50.88663898141397
+          ],
+          [
+            -0.2095364849074348,
+            50.88666564424542
+          ],
+          [
+            -0.209460504379011,
+            50.88667987167133
+          ],
+          [
+            -0.20939134601511517,
+            50.8867040534486
+          ]
+        ],
+        "type": "LineString"
+      },
+      "properties": {
+        "altitude_accuracy_m": null,
+        "altitude_m": null,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:00:47.000Z",
+        "gps_accuracy_m": 2.320649966946388,
+        "heading_accuracy_deg": null,
+        "heading_deg": null,
+        "lat": 50.88665208292086,
+        "lon": -0.20957058785240565,
+        "note": "",
+        "obs_id": "01M11VTR84WKW6PAAHDPYT949J",
+        "os_grid_ref": "TQ 26033 11212",
+        "photo": null,
+        "photos": [],
+        "position_source": "trace",
+        "recorded_at": "2026-08-27T15:01:19.748Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": 27.86851361483454
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.20936104500103184,
+          50.88672477200452
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 207.8726214794442,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:01:39.000Z",
+        "gps_accuracy_m": 2.2485773393203705,
+        "heading_accuracy_deg": 18.781185150146484,
+        "heading_deg": 358.9091491699219,
+        "lat": 50.88672477200452,
+        "lon": -0.20936104500103184,
+        "note": "Down in the world is a really fancy looking",
+        "obs_id": "01M11VVBC9X2CWBBZ2RDXTDHZK",
+        "os_grid_ref": "TQ 26048 11220",
+        "photo": "01M11VVBC9X2CWBBZ2RDXTDHZM.jpg",
+        "photos": [
+          {
+            "photo": "01M11VVBC9X2CWBBZ2RDXTDHZM.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:01:39.337Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.2071122483515801,
+          50.887766486201244
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 202.1483333753422,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:05:05.000Z",
+        "gps_accuracy_m": 3.478786330297749,
+        "heading_accuracy_deg": 12.541862487792969,
+        "heading_deg": 115.49458312988281,
+        "lat": 50.887766486201244,
+        "lon": -0.2071122483515801,
+        "note": "I think it was the east end of the Hill Ford, and then we got a good start to see a view of Brighton to the",
+        "obs_id": "01M11W1MQS5N7445EJJ37V1YTH",
+        "os_grid_ref": "TQ 26203 11340",
+        "photo": "01M11W1MQS5N7445EJJ37V1YTJ.jpg",
+        "photos": [
+          {
+            "photo": "01M11W1MQS5N7445EJJ37V1YTJ.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:05:05.529Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.20636074954964834,
+          50.88745813587776
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 197.9857450965792,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:06:25.000Z",
+        "gps_accuracy_m": 2.252711737855451,
+        "heading_accuracy_deg": 10,
+        "heading_deg": 235.32888793945312,
+        "lat": 50.88745813587776,
+        "lon": -0.20636074954964834,
+        "note": "Looking west from the eastern end of the Hill thought there’s a great path to use a New Zealand",
+        "obs_id": "01M11W42GV4H3X5FMYAAHAE6G3",
+        "os_grid_ref": "TQ 26257 11307",
+        "photo": "01M11W42GV4H3X5FMYAAHAE6G4.jpg",
+        "photos": [
+          {
+            "photo": "01M11W42GV4H3X5FMYAAHAE6G4.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:06:25.179Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.2050288754160501,
+          50.88676612990416
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 178.49773454200476,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:08:40.000Z",
+        "gps_accuracy_m": 3.378983091368487,
+        "heading_accuracy_deg": 13.864252090454102,
+        "heading_deg": 67.07595825195312,
+        "lat": 50.88676612990416,
+        "lon": -0.2050288754160501,
+        "note": "From this day here you can take the bath down to boiling and go to",
+        "obs_id": "01M11W86MS8B9DXRGNJ1M173DN",
+        "os_grid_ref": "TQ 26352 11232",
+        "photo": "01M11W86MT5V9SQJGTPTP4S2M2.jpg",
+        "photos": [
+          {
+            "photo": "01M11W86MT5V9SQJGTPTP4S2M2.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:08:40.474Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.20561908530730372,
+          50.88609257013562
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 178.1190689979121,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:10:32.000Z",
+        "gps_accuracy_m": 2.1542666194308286,
+        "heading_accuracy_deg": 12.718271255493164,
+        "heading_deg": 233.10531616210938,
+        "lat": 50.88609257013562,
+        "lon": -0.20561908530730372,
+        "note": "Near the path splits into two and you can take the high Road all",
+        "obs_id": "01M11WBM9XZ0SYTS9DRQVVBVWJ",
+        "os_grid_ref": "TQ 26313 11156",
+        "photo": "01M11WBM9XZ0SYTS9DRQVVBVWK.jpg",
+        "photos": [
+          {
+            "photo": "01M11WBM9XZ0SYTS9DRQVVBVWK.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:10:32.765Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.20729478576473834,
+          50.88523110000597
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3.0122010823164227,
+        "altitude_m": 180.77055206056684,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:13:45.000Z",
+        "gps_accuracy_m": 3.8132730481971633,
+        "heading_accuracy_deg": 13.371925354003906,
+        "heading_deg": 218.89414978027344,
+        "lat": 50.88523110000597,
+        "lon": -0.20729478576473834,
+        "note": "Babe, we can see you down and see the bandage was crazy last night",
+        "obs_id": "01M11WHH2TZJVJGB60ZZJCZNA6",
+        "os_grid_ref": "TQ 26197 11057",
+        "photo": "01M11WHH2VC0QEMG3GH1PHFA8S.jpg",
+        "photos": [
+          {
+            "photo": "01M11WHH2VC0QEMG3GH1PHFA8S.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:13:46.075Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.20837435808860758,
+          50.88485522083034
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 181.9563681781292,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:16:05.000Z",
+        "gps_accuracy_m": 2.2707424492592336,
+        "heading_accuracy_deg": 10,
+        "heading_deg": 110.4024429321289,
+        "lat": 50.88485522083034,
+        "lon": -0.20837435808860758,
+        "note": "Summer’s evening, you can see her girls at hostel",
+        "obs_id": "01M11WNRVZJM9FXRMNY2MB1HAK",
+        "os_grid_ref": "TQ 26122 11014",
+        "photo": "01M11WNRVZJM9FXRMNY2MB1HAM.jpg",
+        "photos": [
+          {
+            "photo": "01M11WNRVZJM9FXRMNY2MB1HAM.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:16:05.119Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.2084047399131405,
+          50.8848501509198
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3.367880523771148,
+        "altitude_m": 181.9458212526515,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:16:48.000Z",
+        "gps_accuracy_m": 4.147082770384159,
+        "heading_accuracy_deg": 10,
+        "heading_deg": 240.4540557861328,
+        "lat": 50.8848501509198,
+        "lon": -0.2084047399131405,
+        "note": "Is the amazing caterpillar?",
+        "obs_id": "01M11WQ2VWDRQPBVW2TMWE5PFR",
+        "os_grid_ref": "TQ 26120 11013",
+        "photo": "01M11WQ2VWDRQPBVW2TMWE5PFS.jpg",
+        "photos": [
+          {
+            "photo": "01M11WQ2VWDRQPBVW2TMWE5PFS.jpg",
+            "ref_photo": null
+          },
+          {
+            "photo": "01M11WQ2VWDRQPBVW2TMWE5PFT.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:16:48.124Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.20861986341221372,
+          50.884780085724195
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 11.058044257255826,
+        "altitude_m": 180.77671494800597,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:18:07.000Z",
+        "gps_accuracy_m": 4.7486515301917605,
+        "heading_accuracy_deg": 10,
+        "heading_deg": 213.34092712402344,
+        "lat": 50.884780085724195,
+        "lon": -0.20861986341221372,
+        "note": "This is some Hoy ground seal",
+        "obs_id": "01M11WSG61V2YQ5Y1MG1ZR27T5",
+        "os_grid_ref": "TQ 26105 11005",
+        "photo": "01M11WSG61V2YQ5Y1MG1ZR27T6.jpg",
+        "photos": [
+          {
+            "photo": "01M11WSG61V2YQ5Y1MG1ZR27T6.jpg",
+            "ref_photo": null
+          },
+          {
+            "photo": "01M11WSG61V2YQ5Y1MG1ZR27T7.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:18:07.297Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.20904016325509733,
+          50.88463962788759
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 9.896734763915854,
+        "altitude_m": 180.7839073445648,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:19:47.999Z",
+        "gps_accuracy_m": 5.190662358775248,
+        "heading_accuracy_deg": 10,
+        "heading_deg": 241.28656005859375,
+        "lat": 50.88463962788759,
+        "lon": -0.20904016325509733,
+        "note": "This is where we’re removing the squeaky",
+        "obs_id": "01M11WWJX7K6KGFNPWSER45Q5H",
+        "os_grid_ref": "TQ 26076 10989",
+        "photo": "01M11WWJX7K6KGFNPWSER45Q5J.jpg",
+        "photos": [
+          {
+            "photo": "01M11WWJX7K6KGFNPWSER45Q5J.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:19:48.391Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.2098388567257537,
+          50.884376101601234
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 187.06126690283418,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:21:43.999Z",
+        "gps_accuracy_m": 2,
+        "heading_accuracy_deg": 10.501751899719238,
+        "heading_deg": 238.21826171875,
+        "lat": 50.884376101601234,
+        "lon": -0.2098388567257537,
+        "note": "Lying downKirsty is taking a few of these things",
+        "obs_id": "01M11X0444BZCKR5RPJ8C8RQSN",
+        "os_grid_ref": "TQ 26020 10958",
+        "photo": "01M11X0444BZCKR5RPJ8C8RQSP.jpg",
+        "photos": [
+          {
+            "photo": "01M11X0444BZCKR5RPJ8C8RQSP.jpg",
+            "ref_photo": null
+          },
+          {
+            "photo": "01M11X044522H4DY1D9WNDWRGK.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:21:44.325Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.20990992701167083,
+          50.88434853443293
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 186.51519378833473,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:22:09.999Z",
+        "gps_accuracy_m": 3.398433708257765,
+        "heading_accuracy_deg": 29.511930465698242,
+        "heading_deg": 325.6560974121094,
+        "lat": 50.88434853443293,
+        "lon": -0.20990992701167083,
+        "note": "From here we’re going to follow this part up to the devil’s cops back",
+        "obs_id": "01M11X0XE5N0QTBQFN52HNEYY3",
+        "os_grid_ref": "TQ 26015 10955",
+        "photo": "01M11X0XE5N0QTBQFN52HNEYY4.jpg",
+        "photos": [
+          {
+            "photo": "01M11X0XE5N0QTBQFN52HNEYY4.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:22:10.245Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.2101151837261041,
+          50.884518312256816
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 193.53879371006042,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:23:11.999Z",
+        "gps_accuracy_m": 2.279901220480986,
+        "heading_accuracy_deg": 10,
+        "heading_deg": 53.18849563598633,
+        "lat": 50.884518312256816,
+        "lon": -0.2101151837261041,
+        "note": "Keep taking the path up the hill",
+        "obs_id": "01M11X2SZKP2TVKJ0MR6429F9P",
+        "os_grid_ref": "TQ 26001 10973",
+        "photo": "01M11X2SZKP2TVKJ0MR6429F9Q.jpg",
+        "photos": [
+          {
+            "photo": "01M11X2SZKP2TVKJ0MR6429F9Q.jpg",
+            "ref_photo": null
+          },
+          {
+            "photo": "01M11X2SZKP2TVKJ0MR6429F9R.jpg",
+            "ref_photo": null
+          },
+          {
+            "photo": "01M11X2SZKP2TVKJ0MR6429F9S.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:23:12.243Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -0.21065227654697685,
+          50.884911821525634
+        ],
+        "type": "Point"
+      },
+      "properties": {
+        "altitude_accuracy_m": 3,
+        "altitude_m": 204.64801614917815,
+        "app_version": "0.1.0",
+        "audio": null,
+        "audio_duration_ms": null,
+        "feature_id": null,
+        "feature_label": null,
+        "feature_layer": null,
+        "fix_at": "2026-08-27T15:24:22.999Z",
+        "gps_accuracy_m": 2.099944443054439,
+        "heading_accuracy_deg": 10.6668701171875,
+        "heading_deg": 328.12481689453125,
+        "lat": 50.884911821525634,
+        "lon": -0.21065227654697685,
+        "note": "This is the gate we need to go into to go through the cops to get back to the",
+        "obs_id": "01M11X4Z9NWDNM90TKN6J49SAN",
+        "os_grid_ref": "TQ 25962 11016",
+        "photo": "01M11X4Z9NWDNM90TKN6J49SAP.jpg",
+        "photos": [
+          {
+            "photo": "01M11X4Z9NWDNM90TKN6J49SAP.jpg",
+            "ref_photo": null
+          }
+        ],
+        "position_source": "gps",
+        "recorded_at": "2026-08-27T15:24:23.222Z",
+        "ref_obs_id": null,
+        "ref_photo": null,
+        "session_name": "Devil’s Dyke circuit",
+        "trace_gaps": null,
+        "trace_length_m": null
+      },
+      "type": "Feature"
+    }
+  ],
+  "survey_session": {
+    "ended_at": "2026-08-27T15:24:45.183Z",
+    "id": "01M11VCFJ4T3AH9MAMFTTA9QRZ",
+    "name": "Devil’s Dyke circuit",
+    "started_at": "2026-08-27T14:53:32.101Z"
+  },
+  "type": "FeatureCollection"
+}
