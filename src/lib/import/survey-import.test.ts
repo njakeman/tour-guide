@@ -9,7 +9,6 @@ import {
   readZipEntries,
   slugify,
   stopPosition,
-  titleFromNote,
   photosOf,
   buildImportPlan,
   writePlan,
@@ -238,37 +237,6 @@ describe('stopPosition', () => {
   })
 })
 
-describe('titleFromNote', () => {
-  it('uses the first sentence of the note', () => {
-    expect(titleFromNote('West stile. Stone, west boundary.', null, 1)).toBe('West stile.')
-  })
-
-  it('uses the first line when there is no sentence punctuation', () => {
-    expect(titleFromNote('Testing', null, 1)).toBe('Testing')
-  })
-
-  it('uses only the first line of a multi-line note', () => {
-    expect(titleFromNote('Line one\nLine two', null, 1)).toBe('Line one')
-  })
-
-  it('truncates a long clause with an ellipsis', () => {
-    const long = 'a'.repeat(100)
-    const title = titleFromNote(long, null, 1)
-    expect(title.length).toBeLessThanOrEqual(58)
-    expect(title.endsWith('…')).toBe(true)
-  })
-
-  it('falls back to feature_label when note is empty', () => {
-    expect(titleFromNote('', 'Boundary stone', 1)).toBe('Boundary stone')
-    expect(titleFromNote('   ', 'Boundary stone', 1)).toBe('Boundary stone')
-  })
-
-  it('falls back to "Stop N" when both note and feature_label are empty', () => {
-    expect(titleFromNote('', null, 7)).toBe('Stop 7')
-    expect(titleFromNote(null, null, 7)).toBe('Stop 7')
-  })
-})
-
 describe('photosOf', () => {
   it('reads the modern photos[] array in order', () => {
     const properties = {
@@ -304,7 +272,7 @@ describe('buildImportPlan + generated content', () => {
     expect(() => buildImportPlan(session([]), { id: 'x', routeName: 'X', subtitle: '' })).toThrow(/no features/)
   })
 
-  it('de-duplicates stop slugs that collide', () => {
+  it('uses ordinal titles/ids regardless of note text, and never collides', () => {
     const plan = buildImportPlan(
       session([
         { type: 'Feature', geometry: { type: 'Point', coordinates: [0, 0] }, properties: { note: 'Gate' } },
@@ -312,7 +280,9 @@ describe('buildImportPlan + generated content', () => {
       ]),
       { id: 'x', routeName: 'X', subtitle: '' }
     )
-    expect(plan.stops.map((s: { slug: string }) => s.slug)).toEqual(['gate', 'gate-2'])
+    expect(plan.stops.map((s: { slug: string }) => s.slug)).toEqual(['stop-1', 'stop-2'])
+    const parsed = plan.stops.map((s: { markdownText: string }) => matter(s.markdownText).data.title)
+    expect(parsed).toEqual(['Stop 1', 'Stop 2'])
   })
 
   it('reports every audio file as skipped, never copies it', () => {
@@ -326,7 +296,7 @@ describe('buildImportPlan + generated content', () => {
       ]),
       { id: 'x', routeName: 'X', subtitle: '' }
     )
-    expect(plan.audioSkipped).toEqual([{ stopTitle: 'Has audio', zipName: 'audio/note.m4a' }])
+    expect(plan.audioSkipped).toEqual([{ stopTitle: 'Stop 1', zipName: 'audio/note.m4a' }])
     expect(plan.photoCopyPlan).toEqual([])
   })
 
@@ -369,14 +339,69 @@ describe('buildImportPlan + generated content', () => {
     expect(plan.tourYamlText).toContain('# map:')
   })
 
-  it('omits the hero block entirely for a photo-less stop, rather than a dangling path', () => {
+  it('never emits a hero block — all photos go inline in the body instead', () => {
+    const plan = buildImportPlan(
+      session([
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [0, 0] },
+          properties: { note: 'Two photos', photos: [{ photo: 'a.jpg' }, { photo: 'b.jpg' }] },
+        },
+      ]),
+      { id: 'x', routeName: 'X', subtitle: '' }
+    )
+    const parsed = matter(plan.stops[0].markdownText)
+    expect(parsed.data.hero).toBeUndefined()
+    expect(parsed.content).toContain('/tours/x/01-stop-1-1.jpg')
+    expect(parsed.content).toContain('/tours/x/01-stop-1-2.jpg')
+  })
+
+  it('warns and marks the body when a stop has no photos, but still has a non-empty body', () => {
     const plan = buildImportPlan(
       session([{ type: 'Feature', geometry: { type: 'Point', coordinates: [0, 0] }, properties: { note: 'No photo' } }]),
       { id: 'x', routeName: 'X', subtitle: '' }
     )
     const parsed = matter(plan.stops[0].markdownText)
     expect(parsed.data.hero).toBeUndefined()
-    expect(plan.warnings.length).toBe(1)
+    expect(parsed.content).toContain('no photo was captured')
+    expect(plan.warnings).toEqual(['Stop 1 has no photos — add one by hand.'])
+  })
+
+  it('puts the note in the body, not in evidence — evidence stays a plain TODO', () => {
+    const plan = buildImportPlan(
+      session([{ type: 'Feature', geometry: { type: 'Point', coordinates: [0, 0] }, properties: { note: 'Field note text' } }]),
+      { id: 'x', routeName: 'X', subtitle: '' }
+    )
+    const parsed = matter(plan.stops[0].markdownText)
+    expect(parsed.content).toContain('Field note text')
+    expect(parsed.data.evidence).not.toContain('Field note text')
+    expect(parsed.data.evidence).toBeTruthy()
+  })
+
+  it('falls back to a TODO body when there is no note, still satisfying the non-empty-body invariant', () => {
+    const plan = buildImportPlan(
+      session([{ type: 'Feature', geometry: { type: 'Point', coordinates: [0, 0] }, properties: {} }]),
+      { id: 'x', routeName: 'X', subtitle: '' }
+    )
+    const parsed = matter(plan.stops[0].markdownText)
+    expect(parsed.content.trim().length).toBeGreaterThan(0)
+    expect(parsed.content).toContain('TODO — write the story of this stop.')
+  })
+
+  it('threads description through to tour.yaml, falling back to a TODO when empty', () => {
+    const withDescription = buildImportPlan(
+      session([{ type: 'Feature', geometry: { type: 'Point', coordinates: [0, 0] }, properties: {} }]),
+      { id: 'x', routeName: 'X', subtitle: '', description: 'A short walk around the site.' }
+    )
+    expect((yaml.load(withDescription.tourYamlText) as { description?: string }).description).toBe(
+      'A short walk around the site.'
+    )
+
+    const withoutDescription = buildImportPlan(
+      session([{ type: 'Feature', geometry: { type: 'Point', coordinates: [0, 0] }, properties: {} }]),
+      { id: 'x', routeName: 'X', subtitle: '' }
+    )
+    expect(withoutDescription.tourYamlText).toContain('TODO — write a 1-2 sentence description')
   })
 
   it('writes route.geojson only with 2+ located stops', () => {
@@ -445,9 +470,9 @@ describe('writePlan + validateGeneratedRoute (round trip on disk)', () => {
 
     expect(mediaBytes).toBeGreaterThan(0)
     expect(existsSync(join(routeDir, 'tour.yaml'))).toBe(true)
-    expect(existsSync(join(routeDir, 'stops', '01-first-stop.md'))).toBe(true)
-    expect(existsSync(join(publicRoot, 'tours', 'round-trip-tour', '01-first-stop-1.jpg'))).toBe(true)
-    expect(existsSync(join(publicRoot, 'tours', 'round-trip-tour', '01-first-stop-2.jpg'))).toBe(true)
+    expect(existsSync(join(routeDir, 'stops', '01-stop-1.md'))).toBe(true)
+    expect(existsSync(join(publicRoot, 'tours', 'round-trip-tour', '01-stop-1-1.jpg'))).toBe(true)
+    expect(existsSync(join(publicRoot, 'tours', 'round-trip-tour', '01-stop-1-2.jpg'))).toBe(true)
 
     expect(() => validateGeneratedRoute(routeDir, publicRoot)).not.toThrow()
   })

@@ -214,24 +214,31 @@ build the tour skeleton by hand:
 npm run tour:import -- ./my-survey-export.zip
 ```
 
-You'll be prompted for a human-readable tour name and a route id, then it
-generates `content/routes/<id>/tour.yaml` and one stop `.md` per surveyed
-observation. **Yes, it imports the photos** — the first photo per stop
-becomes the hero image, the rest are appended in the body, and all of them
-are copied into `public/tours/<id>/` as real files ready to commit (not
-placeholders). Voice notes are reported and skipped (not imported). See
+You'll be prompted for a human-readable tour name, a route id, an optional
+subtitle, and an optional one-line tour description, then it generates
+`content/routes/<id>/tour.yaml` and one stop `.md` per surveyed observation.
+**Yes, it imports the photos** — every photo for a stop is copied into
+`public/tours/<id>/` as a real file ready to commit (not a placeholder) and
+appended inline in the stop's body. There's no separate hero image: on
+phone, the hero plate is a live locator map, not a photo, so a "hero" photo
+would be invisible where the tour is actually walked — see
 **[AUTHORING.md → Importing a survey export](AUTHORING.md#importing-a-survey-export)**
-for the full field-by-field mapping.
+for why and for the full field-by-field mapping. Voice notes are reported
+and skipped (not imported).
 
 ### Editing what it generates
 
 Nothing it produces is finished — every field that needs prose is a literal
-`TODO`. Open the generated files and fill in:
+`TODO`, except `description` if you supplied one at the prompt. Open the
+generated files and fill in:
 
-- **`tour.yaml`** — `description`, `subtitle`, `total_distance`, `duration`,
-  and (once you have a `.pmtiles` file) uncomment the `map:` block.
-- **Each stop file** — `era`, `walk_time`, `evidence`, `interpretation`, and
-  photo captions.
+- **`tour.yaml`** — `description` (if you skipped the prompt), `subtitle`,
+  `total_distance`, `duration`, and (once you have a `.pmtiles` file)
+  uncomment the `map:` block.
+- **Each stop file** — rename the placeholder `title: "Stop 1"` to something
+  real, then fill in `era`, `walk_time`, `evidence`, `interpretation`, and
+  photo captions. The body opens with the surveyor's field note as a first
+  draft — rewrite it into proper stop prose.
 
 Then `npm run check && npm run test` — the new route is picked up by the
 existing content tests automatically — and `npm run dev` to see it in the
@@ -243,22 +250,24 @@ The importer bakes several values into the generated files at import time.
 Renaming things afterwards can quietly break what it wrote:
 
 - **Renaming the route id** (the `content/routes/<id>` / `public/tours/<id>`
-  folder name) breaks every generated path — hero `src`, inline photo `src`,
-  and (once uncommented) `map.basemap` all point at `/tours/<old-id>/...`.
-  Rename both folders together and find/replace the old id across every stop
-  file.
-- **Renaming a stop's `id:`** must be mirrored in `tour.yaml`'s `stops:` list
-  entry (and ideally the `NN-<id>.md` filename) — the usual three-places rule
-  for any stop, easy to forget here since the importer auto-generates ids
-  from the surveyor's note text.
-- **Renaming a stop's `title:`** does *not* rename its photo files — they
-  keep the `NN-<original-slug>-<k>.jpg` name from import time. This is
-  cosmetic only (the hero/body paths still point at the right file), but can
-  be surprising if you go looking for a file matching the current title.
+  folder name) breaks every generated path — inline photo `src` and (once
+  uncommented) `map.basemap` all point at `/tours/<old-id>/...`. Rename both
+  folders together and find/replace the old id across every stop file.
+- **Renaming a stop's `id:`** (e.g. `stop-1` → something descriptive) must be
+  mirrored in `tour.yaml`'s `stops:` list entry and ideally the `NN-<id>.md`
+  filename — the usual three-places rule for any stop.
+- **Renaming a stop's `title:`** (e.g. `Stop 1` → a real name) does *not*
+  rename its `id:`, its filename, or its photo files — those stay
+  `stop-1` / `01-stop-1.md` / `01-stop-1-N.jpg` regardless of title. This is
+  cosmetic only (the body's photo paths still point at the right file), but
+  can be surprising if you go looking for a file matching the current title.
 - **Re-running the importer on the same zip with `--force`** regenerates
   every file from scratch — it overwrites, it does not merge. Any hand-edits
-  (prose, renamed ids, an uncommented `map:` block) are lost. Only safe
-  before you've started editing.
+  (prose, renamed ids/titles, an uncommented `map:` block) are lost, and
+  because filenames are derived from ordinal position rather than content,
+  a session that has gained or lost a feature since your last import can
+  shift which photos land under which stop number. Only safe before you've
+  started editing.
 - **`route_name`** (the tour's display title) is freely editable with no
   knock-on effect — nothing else derives from it after generation.
 

@@ -349,28 +349,37 @@ npm run tour:import -- ./my-survey-export.zip
 ```
 
 You'll be prompted for a human-readable tour name (survey session names
-tend to be undescriptive, e.g. "Multiple photo test") and a route id — the
-directory name under `content/routes/` and `public/tours/`. Flags skip the
-prompts for scripting: `--name`, `--id`, `--subtitle`, and `--force` to
-overwrite a previous import of the same zip in place.
+tend to be undescriptive, e.g. "Multiple photo test"), a route id — the
+directory name under `content/routes/` and `public/tours/` — and an optional
+one-line tour description. Flags skip the prompts for scripting: `--name`,
+`--id`, `--subtitle`, `--description`, and `--force` to overwrite a previous
+import of the same zip in place.
 
 What you get, per surveyed observation ("feature"):
 
 - **Position** — a `Point` or a walked `LineString` uses its first
   coordinate; a walked `Polygon` boundary uses the survey app's own
   centroid. Either way it lands in `lat`/`lng` in the stop frontmatter.
-- **Title** — the first sentence of the surveyor's note, or their feature
-  label, or "Stop N" if neither exists.
-- **Photos** — the first becomes the stop's `hero`; the rest are appended
-  under a "Photographs" heading in the body, all copied into
+- **Title and id** — always ordinal: `Stop 1`, `Stop 2`, … (`id: stop-1`,
+  filename `01-stop-1.md`). Field notes make poor titles, so this is a
+  placeholder to rename by hand, not a guess at the real one — see
+  "Editing what it generates" below.
+- **Body** — the surveyor's note, verbatim, as the opening prose (or a
+  `TODO` placeholder when there's no note), followed by **every** photo for
+  that stop inline (`![TODO — caption](...)`), all copied into
   `public/tours/<id>/` (committed to git, same as any real tour media).
-- **`evidence`** — starts with a TODO placeholder plus the surveyor's note
-  verbatim, so the field is never empty (required by `content.test.ts`).
+  There's no `hero:` — see "Not imported" below for why.
+- **`evidence`** — a plain `TODO` placeholder (the note lives in the body,
+  not duplicated here).
 - A `survey:` block in the frontmatter — `obs_id`, `recorded_at`,
-  `gps_accuracy_m`, etc. — kept for provenance. The app ignores it; edit or
-  delete it freely.
+  `feature_label`, `gps_accuracy_m`, etc. — kept for provenance. The app
+  ignores it; edit or delete it freely.
 
 **Not imported:**
+- **A hero image.** `TourStop.svelte` replaces the hero plate with a live
+  locator map on phone — the device the tour is actually walked with — so a
+  designated hero photo would often be invisible where it matters most.
+  Every photo goes inline in the body instead, visible on every screen size.
 - **Audio.** Voice notes are reported in the console summary and skipped —
   the survey app's `.webm` format doesn't play in Safari. Re-add manually
   as `.m4a` if you want them.

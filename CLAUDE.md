@@ -72,18 +72,32 @@ root; untracked, ask the user for it if a change needs the spec). Zero-dependenc
 zip reader (central-directory + `zlib.inflateRawSync`, matching
 `seed-demo.mjs`'s style) because the export's entries use data descriptors —
 local file headers report size 0, so sizes must come from the central
-directory. Every prose field is emitted as a literal `TODO`; the `map:` block
-always ships commented out (no `.pmtiles` exists yet — emitting `map.basemap`
-without one would fail `content.test.ts`'s offline-manifest assertion).
-Position mapping: `Point`/other → `properties.lat/lon`; `LineString` → first
-coordinate (where the walk starts); `Polygon` → `properties.lat/lon`, which
-the survey app itself already populates with the ring centroid. Audio is
-skipped (reported, not copied — the export's `.webm` doesn't play in
-Safari). The script re-validates its own output against the same invariants
-`content.test.ts` enforces before exiting, so a broken skeleton fails loudly
-at generation time rather than silently at the next `npm run test`. See
-`AUTHORING.md` → "Importing a survey export" for the user-facing walkthrough
-and `src/lib/import/survey-import.test.ts` for coverage (lives under `src/`
+directory. No shebang on this file (unlike `seed-demo.mjs`/`optimize-media.mjs`)
+— it's `import`ed by its test, and Vite's SSR module transform wraps the
+source with its own prelude, turning a leading `#!...` into invalid mid-file
+syntax. Stop `title`/`id` are always ordinal (`Stop 1`/`stop-1`, …) — never
+scraped from the surveyor's note — so the id (which drives the stop filename
+and photo filenames) can never collide and is trivially renamed later. Every
+photo for a stop goes inline in the body (`![TODO — caption](...)`); the
+importer never emits a `hero:` block, because `TourStop.svelte` swaps the
+hero plate for a live locator map on phone, so a hero photo would be
+invisible on the device the tour is actually walked with. The surveyor's
+note becomes the body's opening prose (a `TODO` placeholder when there is
+none); `evidence:` is a plain `TODO`, not a duplicate of the note. The
+importer also prompts for an optional tour `description`, threaded straight
+into `tour.yaml` (falls back to a `TODO` when skipped). Every other prose
+field is emitted as a literal `TODO`; the `map:` block always ships commented
+out (no `.pmtiles` exists yet — emitting `map.basemap` without one would fail
+`content.test.ts`'s offline-manifest assertion). Position mapping:
+`Point`/other → `properties.lat/lon`; `LineString` → first coordinate (where
+the walk starts); `Polygon` → `properties.lat/lon`, which the survey app
+itself already populates with the ring centroid. Audio is skipped (reported,
+not copied — the export's `.webm` doesn't play in Safari). The script
+re-validates its own output against the same invariants `content.test.ts`
+enforces before exiting, so a broken skeleton fails loudly at generation time
+rather than silently at the next `npm run test`. See `AUTHORING.md` →
+"Importing a survey export" for the user-facing walkthrough and
+`src/lib/import/survey-import.test.ts` for coverage (lives under `src/`
 because `vitest.config.ts` only discovers `src/**/*.{test,spec}.*`; the
 script itself carries `// @ts-nocheck` since it's plain JS pulled into the
 `checkJs` graph only via that test's import).
@@ -475,4 +489,4 @@ Run with vitest (`svelteTesting()` in `vitest.config.ts` makes Svelte 5 componen
 - `src/lib/import/survey-import.test.ts` — the survey-export importer (`scripts/import-survey.mjs`): zip reading (stored/deflated entries, the data-descriptor size-0-local-header case), position mapping per geometry type, slug/title/photo derivation, and a full writePlan → validateGeneratedRoute round trip against a temp directory using zips built in-memory with `zlib` (no binary fixtures committed)
 - `src/lib/TourStop.test.ts`, `src/lib/TourLibrary.test.ts`, `src/lib/RouteMap.test.ts` — component tests (@testing-library/svelte): proximity footer states incl. stale-fix handling, nav edges, SVG map fallback, the wordmark home button, and the responsive one-DOM layouts. For the Landing: rail (`.tour-list`) + overview (`.tour-overview`) present together, `data-phone-view` follows the `view` prop, selected-vs-idle card `data-state`. For RouteMap-as-overview: `.start-tour[data-tour]` hook + Start/Resume CTA text and the `.tour-overview[data-tour]` root. For TourStop: the phone hero `MapPanel` and the rail `MapPanel` both mount with distinct `id`s (`tour-map-hero` / `tour-map`) and accessible names, since jsdom has no WebGL so both fall back to the SVG schematic — the live map, its markers (current-stop pin, user-location dot), and the recentring behaviour are verified manually in the browser instead. TourStop also covers the lightbox (open from body image and hero button, close via Escape/button/backdrop, image click does not close).
 
-Expected baseline: **231 tests pass, 0 errors** from `npm run check`.
+Expected baseline: **229 tests pass, 0 errors** from `npm run check`.

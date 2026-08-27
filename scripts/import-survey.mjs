@@ -1,6 +1,10 @@
-#!/usr/bin/env node
 // @ts-nocheck — plain JS script (matches scripts/seed-demo.mjs, scripts/optimize-media.mjs);
 // not part of the checkJs project graph except via the test file's import below.
+// No shebang here (unlike optimize-media.mjs): this file is also `import`ed
+// by survey-import.test.ts, and Vite's SSR module transform wraps the source
+// with its own prelude, which turns a leading `#!...` into invalid mid-file
+// syntax ("Invalid or unexpected token"). The npm script invokes this with
+// an explicit `node` prefix, so the shebang was never load-bearing.
 /**
  * Survey-export zip → tour skeleton importer.
  *
@@ -11,7 +15,7 @@
  * "TODO" placeholder — the app owner fills those in by hand afterwards.
  *
  * Usage:
- *   npm run tour:import -- <zip> [--id <slug>] [--name "Human Name"] [--subtitle "..."] [--force]
+ *   npm run tour:import -- <zip> [--id <slug>] [--name "Human Name"] [--subtitle "..."] [--description "..."] [--force]
  *
  * Deliberately out of scope (see AUTHORING.md "Importing a survey export"):
  * re-import/upsert by obs_id, revisit sessions (survey_revisit is ignored —
@@ -152,21 +156,6 @@ export function stopPosition(feature) {
   return { lat: null, lng: null }
 }
 
-/** Stop title candidate: first sentence/clause of the note, else the
- * surveyor's own feature_label, else "Stop N" (survey-export-zip-spec.md §5). */
-export function titleFromNote(note, featureLabel, index) {
-  const trimmed = (note ?? '').trim()
-  if (trimmed) {
-    const firstLine = trimmed.split(/\r?\n/)[0].trim()
-    const sentence = firstLine.match(/^.*?[.!?](?=\s|$)/)
-    const clause = sentence ? sentence[0] : firstLine
-    return clause.length > 60 ? `${clause.slice(0, 57).trimEnd()}…` : clause
-  }
-  const label = (featureLabel ?? '').trim()
-  if (label) return label
-  return `Stop ${index}`
-}
-
 /** Photo entry names (under photos/) in capture order — modern photos[]
  * array, falling back to the legacy `photo` string (sample.zip's shape,
  * survey-export-zip-spec.md §2.2 "legacy: photos[0].photo"). */
@@ -192,11 +181,11 @@ function escapeMd(s) {
 // Content generation
 // ---------------------------------------------------------------------------
 
-export function buildTourYaml({ id, routeName, subtitle, stopIds, centerLng, centerLat }) {
+export function buildTourYaml({ id, routeName, subtitle, description, stopIds, centerLng, centerLat }) {
   const lines = [
     `route_name: ${yamlString(routeName)}`,
     `subtitle: ${subtitle ? yamlString(subtitle) : '"TODO — one-line subtitle"'}`,
-    `description: "TODO — write a 1-2 sentence description of this tour."`,
+    `description: ${description ? yamlString(description) : '"TODO — write a 1-2 sentence description of this tour."'}`,
     `icon: "🚩"  # TODO — pick an icon`,
     `total_distance: "TODO — total distance"`,
     `duration: "TODO — duration"`,
@@ -226,41 +215,34 @@ export function buildStopMarkdown(stop) {
     `proximity_radius: 30`,
   ]
 
-  if (stop.heroSrc) {
-    fm.push(`hero:`, `  src: ${yamlString(stop.heroSrc)}`, `  caption: "TODO — hero caption"`)
-  }
-
   fm.push(
     `# Provenance from the survey import — not read by the app, safe to edit/remove.`,
     `survey:`,
     `  obs_id: ${yamlString(stop.obsId)}`,
     `  recorded_at: ${yamlString(stop.recordedAt)}`,
     `  position_source: ${yamlString(stop.positionSource)}`,
+    `  feature_label: ${yamlString(stop.featureLabel ?? '')}`,
     `  gps_accuracy_m: ${stop.gpsAccuracyM ?? 'null'}`,
     `  heading_deg: ${stop.headingDeg ?? 'null'}`,
     `  trace_length_m: ${stop.traceLengthM ?? 'null'}`,
   )
 
-  const evidenceLines = ['TODO — describe what is physically visible/measurable at this stop.']
-  const note = (stop.note ?? '').trim()
-  if (note) {
-    evidenceLines.push('', `Surveyor's note:`, ...note.split(/\r?\n/))
-  }
-  fm.push(`evidence: |`, ...evidenceLines.map((l) => (l ? `  ${l}` : '')))
+  fm.push(`evidence: |`, `  TODO — describe what is physically visible/measurable at this stop.`)
   fm.push(`interpretation: |`, `  TODO — add interpretation once the evidence is written.`)
 
   const frontmatter = `---\n${fm.join('\n')}\n---`
 
-  const body = [`# ${stop.title}`, '', 'TODO — write the story of this stop.']
-  if (note) {
-    body.push('', `> Surveyor's note: "${escapeMd(note)}"`)
-  }
-  if (!stop.heroSrc) {
-    body.push('', '<!-- TODO: no photo was captured for this stop — add a hero image above. -->')
-  }
-  if (stop.bodyPhotos.length > 0) {
-    body.push('', '## Photographs')
-    for (const p of stop.bodyPhotos) body.push('', `![TODO — caption](${p.src})`)
+  // No photo, and never a `hero:` block — see TourStop.svelte: the hero
+  // plate is a locator map on phone (where it matters most on a walk) and
+  // photos only ever read from the frontmatter `hero`/`media` fields, which
+  // this importer intentionally never emits. Every photo instead goes inline
+  // in the body below, visible on every screen size.
+  const note = (stop.note ?? '').trim()
+  const body = note ? escapeMd(note).split(/\r?\n/) : ['TODO — write the story of this stop.']
+  if (stop.photos.length === 0) {
+    body.push('', '<!-- TODO: no photo was captured for this stop — add one. -->')
+  } else {
+    for (const p of stop.photos) body.push('', `![TODO — caption](${p.src})`)
   }
   body.push('')
 
@@ -271,15 +253,15 @@ export function buildStopMarkdown(stop) {
  * Pure planning step: reads the parsed session.geojson and returns every
  * file to write, with no filesystem access. `id` is the route directory
  * name (already chosen/validated by the caller).
+ * @param {{ id: string, routeName: string, subtitle?: string, description?: string }} opts
  */
-export function buildImportPlan(session, { id, routeName, subtitle }) {
+export function buildImportPlan(session, { id, routeName, subtitle, description = '' }) {
   const features = Array.isArray(session.features) ? session.features : []
   if (features.length === 0) {
     throw new Error('This survey export has no features — nothing to import.')
   }
 
   const warnings = []
-  const usedSlugs = new Set()
   const stops = []
   const photoCopyPlan = []
   const audioSkipped = []
@@ -287,16 +269,10 @@ export function buildImportPlan(session, { id, routeName, subtitle }) {
   features.forEach((feature, i) => {
     const index = i + 1
     const pr = feature.properties ?? {}
-    const title = titleFromNote(pr.note, pr.feature_label, index)
-
-    const baseSlug = slugify(title) || `stop-${index}`
-    let slug = baseSlug
-    let suffix = 2
-    while (usedSlugs.has(slug)) {
-      slug = `${baseSlug}-${suffix}`
-      suffix++
-    }
-    usedSlugs.add(slug)
+    // Ordinal, not scraped from the note — trivially editable, and the id
+    // (which drives the filename and photo filenames) can never collide.
+    const title = `Stop ${index}`
+    const slug = `stop-${index}`
 
     const pos = stopPosition(feature)
     const lat = typeof pos.lat === 'number' ? Number(pos.lat.toFixed(6)) : null
@@ -313,10 +289,9 @@ export function buildImportPlan(session, { id, routeName, subtitle }) {
       audioSkipped.push({ stopTitle: title, zipName: `audio/${pr.audio}` })
     }
 
-    const heroSrc = destPhotoNames.length > 0 ? `/tours/${id}/${destPhotoNames[0]}` : null
-    const bodyPhotos = destPhotoNames.slice(1).map((name) => ({ src: `/tours/${id}/${name}` }))
-    if (!heroSrc) {
-      warnings.push(`Stop "${title}" has no photos — add one by hand.`)
+    const photos = destPhotoNames.map((name) => ({ src: `/tours/${id}/${name}` }))
+    if (photos.length === 0) {
+      warnings.push(`${title} has no photos — add one by hand.`)
     }
 
     const filename = `${nn}-${slug}.md`
@@ -327,12 +302,12 @@ export function buildImportPlan(session, { id, routeName, subtitle }) {
       elevation: typeof pr.altitude_m === 'number' ? `${Math.round(pr.altitude_m)}m AOD` : null,
       lat,
       lng,
-      heroSrc,
-      bodyPhotos,
+      photos,
       note: pr.note ?? '',
       obsId: pr.obs_id ?? '',
       recordedAt: pr.recorded_at ?? '',
       positionSource: pr.position_source ?? '',
+      featureLabel: pr.feature_label ?? '',
       gpsAccuracyM: typeof pr.gps_accuracy_m === 'number' ? pr.gps_accuracy_m : null,
       headingDeg: typeof pr.heading_deg === 'number' ? pr.heading_deg : null,
       traceLengthM: typeof pr.trace_length_m === 'number' ? pr.trace_length_m : null,
@@ -353,6 +328,7 @@ export function buildImportPlan(session, { id, routeName, subtitle }) {
     id,
     routeName,
     subtitle,
+    description,
     stopIds: stops.map((s) => s.slug),
     centerLng,
     centerLat,
@@ -455,6 +431,7 @@ function parseArgs(argv) {
     if (a === '--id') opts.id = argv[++i]
     else if (a === '--name') opts.name = argv[++i]
     else if (a === '--subtitle') opts.subtitle = argv[++i]
+    else if (a === '--description') opts.description = argv[++i]
     else if (a === '--force') opts.force = true
     else positional.push(a)
   }
@@ -482,7 +459,7 @@ async function main() {
   const argv = parseArgs(process.argv.slice(2))
   if (!argv.zipPath) {
     console.error(
-      'Usage: npm run tour:import -- <zip> [--id <slug>] [--name "Human Name"] [--subtitle "..."] [--force]'
+      'Usage: npm run tour:import -- <zip> [--id <slug>] [--name "Human Name"] [--subtitle "..."] [--description "..."] [--force]'
     )
     process.exitCode = 1
     return
@@ -515,6 +492,11 @@ async function main() {
     subtitle = interactive ? await promptWithDefault(rl, 'Subtitle (optional)', '') : ''
   }
 
+  let description = argv.description
+  if (description === undefined) {
+    description = interactive ? await promptWithDefault(rl, 'Tour description (optional)', '') : ''
+  }
+
   rl?.close()
 
   const routeDir = join('content', 'routes', id)
@@ -525,7 +507,7 @@ async function main() {
     )
   }
 
-  const plan = buildImportPlan(session, { id, routeName: name, subtitle })
+  const plan = buildImportPlan(session, { id, routeName: name, subtitle, description })
   const { mediaBytes } = writePlan(plan, zipEntries, { sessionRaw })
   validateGeneratedRoute(routeDir)
 
@@ -543,7 +525,12 @@ async function main() {
   console.log('')
   console.log('TODO before this tour is ready:')
   console.log(`  - Add a PMTiles basemap and uncomment the map: block in content/routes/${id}/tour.yaml`)
-  console.log('  - Write description, subtitle, total_distance, duration in tour.yaml')
+  console.log(
+    description
+      ? '  - Write subtitle, total_distance, duration in tour.yaml'
+      : '  - Write description, subtitle, total_distance, duration in tour.yaml'
+  )
+  console.log('  - Rename each stop from its placeholder "Stop N" title once you know what it is')
   console.log('  - Write era, walk_time, evidence, interpretation, and captions for each stop')
   console.log('')
 }
