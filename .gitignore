@@ -20,6 +20,10 @@ dist/
 /public/tours/mount-caburn/*
 !/public/tours/mount-caburn/caburn.pmtiles
 !/public/tours/mount-caburn/caburn.glb
+# Local survey-import experiment — not a real tour, never committed (also skipped
+# by scripts/sync-issue-templates.mjs so it can't leak into the issue forms).
+/content/routes/testing-import-from-survey-tool/
+/public/tours/testing-import-from-survey-tool/
 .env
 .env.local
 .env.*.local

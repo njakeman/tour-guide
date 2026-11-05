@@ -15,17 +15,33 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { execFileSync } from 'node:child_process'
 
 const BEGIN = /^([ \t]*)# tours:begin.*$/m
 const END = /^[ \t]*# tours:end[ \t]*$/m
 
 export const TEMPLATES_WITH_TOUR_DROPDOWN = ['add-stop.yml', 'edit-stop.yml']
 
+/** True when git says `path` is ignored. Any other outcome (not ignored, not a
+ * git checkout, git missing) is "not ignored" — the fallback is the plain listing. */
+function isGitIgnored(path) {
+  try {
+    execFileSync('git', ['check-ignore', '-q', path], { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Tour folders under content/routes/, minus git-ignored ones (local
+ * experiments). Untracked-but-not-ignored folders ARE listed: the issue
+ * workflow syncs right after generating a new tour, before it is committed. */
 export function listTourIds(contentRoot = 'content') {
   const dir = join(contentRoot, 'routes')
   if (!existsSync(dir)) return []
   return readdirSync(dir, { withFileTypes: true })
     .filter((d) => d.isDirectory() && existsSync(join(dir, d.name, 'tour.yaml')))
+    .filter((d) => !isGitIgnored(join(dir, d.name)))
     .map((d) => d.name)
     .sort()
 }
