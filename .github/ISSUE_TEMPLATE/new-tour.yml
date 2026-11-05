@@ -1,0 +1,99 @@
+name: New tour
+description: Create a tour with its first stop. Opens a pull request for you to review.
+title: "[New tour] "
+labels: ["content"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Creates `content/routes/<tour id>/` with its first stop. Add the remaining stops with the **Add stop** form.
+
+        A tour needs at least one stop, so the first stop's essentials are below. The map basemap (`.pmtiles`) can't be made here: add it locally afterwards.
+  - type: input
+    id: route_name
+    attributes:
+      label: Route name
+      placeholder: Cissbury Ring
+    validations:
+      required: true
+  - type: input
+    id: tour_id
+    attributes:
+      label: Tour id
+      description: Lowercase letters, digits and hyphens. Leave blank to derive it from the route name.
+      placeholder: cissbury-ring
+  - type: input
+    id: subtitle
+    attributes:
+      label: Subtitle
+      placeholder: Iron Age Hillfort · South Downs
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: One or two sentences for the tour card.
+    validations:
+      required: true
+  - type: input
+    id: icon
+    attributes:
+      label: Icon
+      description: A single emoji.
+      placeholder: 🪨
+  - type: input
+    id: total_distance
+    attributes:
+      label: Total distance
+      placeholder: 2.4 km
+  - type: input
+    id: duration
+    attributes:
+      label: Duration
+      placeholder: ~70 min
+  - type: markdown
+    attributes:
+      value: |
+        ## First stop
+  - type: input
+    id: stop_title
+    attributes:
+      label: Stop title
+    validations:
+      required: true
+  - type: input
+    id: lat
+    attributes:
+      label: Latitude
+      description: Decimal degrees. You can paste a `lat, lng` pair copied from a maps app here and leave Longitude empty.
+      placeholder: 50.8570
+    validations:
+      required: true
+  - type: input
+    id: lng
+    attributes:
+      label: Longitude
+      placeholder: "-0.3780"
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: What is physically visible or measurable at this stop.
+    validations:
+      required: true
+  - type: textarea
+    id: body
+    attributes:
+      label: Body
+      description: The story of the stop, in markdown. Drag photos and video straight into this box.
+    validations:
+      required: true
+  - type: textarea
+    id: photos
+    attributes:
+      label: Photos & video
+      description: Optional. Drag files here, with a caption on the line after each. They are appended to the body, or placed at a `{{media}}` marker if the body has one.
+  - type: textarea
+    id: extras
+    attributes:
+      label: Audio & 3D models
+      description: Optional. Attach a `.zip` of `.mp3` / `.glb` files, or give one `https://… | caption` per line.

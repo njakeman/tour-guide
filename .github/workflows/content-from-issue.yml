@@ -1,0 +1,125 @@
+name: Content from issue
+
+# Turns a submitted New tour / Add stop / Edit stop issue form into a content
+# pull request (scripts/issue-to-content.mjs). Merging that PR triggers the
+# normal deploy.yml. Editing the issue re-runs this and updates the same PR.
+#
+# SECURITY: issue text is untrusted input. It is never interpolated into a
+# `run:` script — the generator reads the event JSON from GITHUB_EVENT_PATH,
+# and anything user-derived reaches actions only through `with:` inputs.
+# Only collaborators with write access (author AND whoever last edited) run it.
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: content-issue-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    # Title prefixes come from the templates; the script re-detects the form
+    # from the body, so a renamed title still works once it has been triggered.
+    if: >-
+      startsWith(github.event.issue.title, '[New tour]') ||
+      startsWith(github.event.issue.title, '[Add stop]') ||
+      startsWith(github.event.issue.title, '[Edit stop]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require write access (issue author and editor)
+        id: perm
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          AUTHOR: ${{ github.event.issue.user.login }}
+          SENDER: ${{ github.event.sender.login }}
+        run: |
+          ok=true
+          for u in "$AUTHOR" "$SENDER"; do
+            perm=$(gh api "repos/$REPO/collaborators/$u/permission" --jq .permission 2>/dev/null || echo none)
+            case "$perm" in
+              admin|maintain|write) ;;
+              *) ok=false; echo "::notice::$u has '$perm' permission — not generating content." ;;
+            esac
+          done
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        if: steps.perm.outputs.ok == 'true'
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - uses: actions/setup-node@v7
+        if: steps.perm.outputs.ok == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.perm.outputs.ok == 'true'
+        run: npm ci
+
+      - name: Generate content from the issue
+        id: gen
+        if: steps.perm.outputs.ok == 'true'
+        run: node scripts/issue-to-content.mjs
+
+      - name: Refresh the tour dropdowns in the issue forms
+        if: steps.perm.outputs.ok == 'true'
+        run: node scripts/sync-issue-templates.mjs
+
+      # Same gate deploy.yml applies. Needed here because a PR opened with
+      # GITHUB_TOKEN does not trigger other workflows.
+      - name: Type check
+        if: steps.perm.outputs.ok == 'true'
+        run: npm run check
+
+      - name: Test
+        if: steps.perm.outputs.ok == 'true'
+        run: npm run test
+
+      - name: Open or update the pull request
+        id: cpr
+        if: steps.perm.outputs.ok == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: content/issue-${{ github.event.issue.number }}
+          base: ${{ github.event.repository.default_branch }}
+          title: ${{ steps.gen.outputs.title }}
+          commit-message: ${{ steps.gen.outputs.title }} (from #${{ github.event.issue.number }})
+          body-path: ${{ steps.gen.outputs.result_file }}
+          add-paths: |
+            content/
+            public/tours/
+            .github/ISSUE_TEMPLATE/
+          delete-branch: true
+
+      - name: Comment the pull request link on the issue
+        if: steps.perm.outputs.ok == 'true' && steps.cpr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          PR_URL: ${{ steps.cpr.outputs.pull-request-url }}
+          OP: ${{ steps.cpr.outputs.pull-request-operation }}
+        run: gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Pull request ${OP}: ${PR_URL} — review and merge to publish."
+
+      - name: Report a failure on the issue
+        if: failure() && steps.perm.outputs.ok == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          GEN_OUTCOME: ${{ steps.gen.outcome }}
+          RESULT_FILE: ${{ steps.gen.outputs.result_file }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$GEN_OUTCOME" = "failure" ] && [ -n "$RESULT_FILE" ] && [ -f "$RESULT_FILE" ]; then
+            gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RESULT_FILE"
+          else
+            gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "The generated content failed \`npm run check\` / \`npm run test\` (or the job crashed). See the run log: $RUN_URL"
+          fi

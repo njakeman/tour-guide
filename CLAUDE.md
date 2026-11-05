@@ -102,6 +102,51 @@ because `vitest.config.ts` only discovers `src/**/*.{test,spec}.*`; the
 script itself carries `// @ts-nocheck` since it's plain JS pulled into the
 `checkJs` graph only via that test's import).
 
+**Authoring from GitHub Issue Forms (`scripts/issue-to-content.mjs`,
+`.github/ISSUE_TEMPLATE/{new-tour,add-stop,edit-stop}.yml`,
+`.github/workflows/content-from-issue.yml`):** a submitted form → generated
+content → a PR on branch `content/issue-<n>` (never a direct commit); merging
+runs the normal deploy. User docs: `AUTHORING.md` → "Authoring from GitHub
+Issues". Things that aren't obvious from the code:
+- **Form kind comes from the body, not labels/title.** Issue-form `labels:`
+  are only applied if the label already exists in the repo, and titles are
+  editable, so `detectKind` keys off distinctive `### <label>` headings. The
+  workflow's `if:` uses the title prefixes (`[New tour]` etc.); a test asserts
+  each template's `title:` appears in the workflow. Field labels are the
+  contract between the templates and `LABELS` in the script — a test fails on
+  a template label the parser doesn't know. `parseIssueForm` only splits on
+  *known* labels because a stop body legitimately contains `### Subheadings`.
+- **A tour needs ≥1 stop** (`content.test.ts` requires it), so New tour
+  includes the first stop's fields rather than creating an empty tour.
+- **Media pipeline:** attachments are downloaded and the type is sniffed from
+  **magic bytes** (`sniffExt`) — `user-attachments/assets/<uuid>` URLs have no
+  extension and servers answer `application/octet-stream`. Output is the
+  ordinary `![caption](/tours/…)` markdown, so `vite-plugin.ts` renders by
+  extension; the script never touches rendering. GitHub's native attachments
+  don't reliably take `.mp3`/`.glb`, hence the zip / `url | caption` fallbacks
+  (zip reuses `readZipEntries` from `import-survey.mjs`). Edits number new
+  files after the highest existing `<stop>-N` so earlier uploads survive.
+- **`tour.yaml` is edited line-wise (`editStopList`), not parse/dump**, to keep
+  its comments (the commented `map:` block, inline notes); the result is
+  re-parsed to prove the stop list. Stop *frontmatter* on edit does go through
+  gray-matter/js-yaml (comments in it are lost) — clone `data` first, gray-matter
+  caches parse results.
+- **Validation is scoped to the touched stop**
+  (`validateGeneratedRoute(…, { onlyStops })`): demo heroes are gitignored and
+  absent on a fresh CI checkout, so whole-route validation would block every
+  edit to a demo tour. The workflow then runs `npm run check && npm run test`
+  itself, since a PR opened with `GITHUB_TOKEN` doesn't trigger other workflows.
+- **Tour dropdowns are generated:** `scripts/sync-issue-templates.mjs` rewrites
+  the region between `# tours:begin` / `# tours:end` in `add-stop.yml` and
+  `edit-stop.yml` from `content/routes/`; a test fails when they drift
+  (`npm run content:sync-templates` fixes it).
+- **Security:** issue text is untrusted. It is never interpolated into a `run:`
+  script (the generator reads `GITHUB_EVENT_PATH`; PR title/body go via `with:`
+  inputs), and generation only runs when both the issue author and the last
+  editor have write permission.
+- Needs the repo setting *Allow GitHub Actions to create and approve pull
+  requests*; the forms only show once on the default branch.
+
 ### Body media at runtime: 3D models + image lightbox
 
 Stop bodies are injected via `{@html stop.bodyHtml}` in `TourStop.svelte`, so
@@ -487,6 +532,7 @@ Run with vitest (`svelteTesting()` in `vitest.config.ts` makes Svelte 5 componen
 - `src/lib/media/models.test.ts` — `hydrateModels` with an injected fake loader: no import when no stub, stub → `<model-viewer>` upgrade, loader-failure fallback, idempotence, retry after failure. **Never put `.media-model` HTML in component-test fixtures** — that would trigger the real `@google/model-viewer` import under jsdom.
 - `src/lib/pwa/workbox-config.test.ts` — guards the SW rules (tour media excluded from precache, pmtiles rule is Range-aware CacheFirst)
 - `src/lib/import/survey-import.test.ts` — the survey-export importer (`scripts/import-survey.mjs`): zip reading (stored/deflated entries, the data-descriptor size-0-local-header case), position mapping per geometry type, slug/title/photo derivation, and a full writePlan → validateGeneratedRoute round trip against a temp directory using zips built in-memory with `zlib` (no binary fixtures committed)
+- `src/lib/import/issue-to-content.test.ts` — the issue-form generator: body parsing + kind detection (incl. `###` inside a body), coordinates (pasted pair, range, swapped-lat/lng warning), media (fake `fetch`, magic-byte sniffing, zip unpack, per-type limits, `{{media}}` placement, rendered through the real `loadTourRoute`), the three planners against a temp content tree, `editStopList`, scoped validation, and that the issue templates stay in sync with `LABELS`, `content/routes/` and the workflow trigger
 - `src/lib/TourStop.test.ts`, `src/lib/TourLibrary.test.ts`, `src/lib/RouteMap.test.ts` — component tests (@testing-library/svelte): proximity footer states incl. stale-fix handling, nav edges, SVG map fallback, the wordmark home button, and the responsive one-DOM layouts. For the Landing: rail (`.tour-list`) + overview (`.tour-overview`) present together, `data-phone-view` follows the `view` prop, selected-vs-idle card `data-state`. For RouteMap-as-overview: `.start-tour[data-tour]` hook + Start/Resume CTA text and the `.tour-overview[data-tour]` root. For TourStop: the phone hero `MapPanel` and the rail `MapPanel` both mount with distinct `id`s (`tour-map-hero` / `tour-map`) and accessible names, since jsdom has no WebGL so both fall back to the SVG schematic — the live map, its markers (current-stop pin, user-location dot), and the recentring behaviour are verified manually in the browser instead. TourStop also covers the lightbox (open from body image and hero button, close via Escape/button/backdrop, image click does not close).
 
-Expected baseline: **229 tests pass, 0 errors** from `npm run check`.
+Expected baseline: **269 tests pass, 0 errors** from `npm run check`.

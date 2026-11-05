@@ -12,7 +12,8 @@
     "test": "vitest run",
     "demo:seed": "node scripts/seed-demo.mjs",
     "demo": "node scripts/seed-demo.mjs && vite",
-    "tour:import": "node scripts/import-survey.mjs"
+    "tour:import": "node scripts/import-survey.mjs",
+    "content:sync-templates": "node scripts/sync-issue-templates.mjs"
   },
   "dependencies": {
     "@fontsource/hanken-grotesk": "^5.2.8",

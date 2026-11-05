@@ -181,14 +181,27 @@ function escapeMd(s) {
 // Content generation
 // ---------------------------------------------------------------------------
 
-export function buildTourYaml({ id, routeName, subtitle, description, stopIds, centerLng, centerLat }) {
+export function buildTourYaml({
+  id,
+  routeName,
+  subtitle,
+  description,
+  stopIds,
+  centerLng,
+  centerLat,
+  // Optional — the issue-form generator (scripts/issue-to-content.mjs) supplies
+  // these; the survey importer omits them and keeps its TODO placeholders.
+  icon,
+  totalDistance,
+  duration,
+}) {
   const lines = [
     `route_name: ${yamlString(routeName)}`,
     `subtitle: ${subtitle ? yamlString(subtitle) : '"TODO — one-line subtitle"'}`,
     `description: ${description ? yamlString(description) : '"TODO — write a 1-2 sentence description of this tour."'}`,
-    `icon: "🚩"  # TODO — pick an icon`,
-    `total_distance: "TODO — total distance"`,
-    `duration: "TODO — duration"`,
+    `icon: ${icon ? yamlString(icon) : '"🚩"  # TODO — pick an icon'}`,
+    `total_distance: ${totalDistance ? yamlString(totalDistance) : '"TODO — total distance"'}`,
+    `duration: ${duration ? yamlString(duration) : '"TODO — duration"'}`,
     ``,
     `# TODO — add a PMTiles basemap (public/tours/${id}/${id}.pmtiles), then uncomment:`,
     `# map:`,
@@ -385,7 +398,7 @@ export function writePlan(plan, zipEntries, { contentRoot = 'content', publicRoo
  * a generated route is under that test immediately, so failing loudly here
  * (before the author ever sees it) beats failing in `npm run test` later.
  */
-export function validateGeneratedRoute(routeDir, publicRoot = 'public') {
+export function validateGeneratedRoute(routeDir, publicRoot = 'public', { onlyStops } = {}) {
   const tourYaml = yaml.load(readFileSync(join(routeDir, 'tour.yaml'), 'utf-8'))
   if (!tourYaml.route_name) throw new Error('Validation failed: tour.yaml has no route_name')
   if (!Array.isArray(tourYaml.stops) || tourYaml.stops.length === 0) {
@@ -395,6 +408,10 @@ export function validateGeneratedRoute(routeDir, publicRoot = 'public') {
   const stopsDir = join(routeDir, 'stops')
   const files = readdirSync(stopsDir)
   for (const stopId of tourYaml.stops) {
+    // `onlyStops` (issue-form generator): an edit to one stop must not be
+    // blocked by an unrelated stop's problem — e.g. a gitignored demo hero
+    // that only exists after `npm run demo:seed`.
+    if (onlyStops && !onlyStops.includes(stopId)) continue
     const match = files.find(
       (f) => f === `${stopId}.md` || (/^\d{2}-/.test(f) && f.replace(/^\d{2}-/, '') === `${stopId}.md`)
     )

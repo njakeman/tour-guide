@@ -396,6 +396,69 @@ to see it in the library.
 
 ---
 
+## Authoring from GitHub Issues
+
+You can create tours and edit stops from the GitHub web UI (or the GitHub
+mobile app, standing in the field) with no local checkout. **New issue**
+offers three structured forms; submitting one makes a GitHub Action generate
+the files and open a **pull request**. Merging it triggers the normal
+deploy, so nothing goes live until you've looked at the result.
+
+| Form | Does |
+| --- | --- |
+| **New tour** | Tour details + its first stop → `content/routes/<id>/tour.yaml` + `stops/<id>.md`. A tour needs at least one stop, hence the first-stop fields. |
+| **Add stop** | Pick the tour, fill in the stop, and it's added to `stops/` and inserted in `tour.yaml` (at the end, after a named stop, or `start`). |
+| **Edit stop** | Pick the tour + stop id, fill in **only what changes**. Blank = keep, `-` = clear an optional field. Tick **Delete stop** to remove one. |
+
+**Coordinates.** Latitude and longitude are required for a new stop. Paste a
+`50.8570, -0.3780` pair copied from a maps app into the Latitude box and leave
+Longitude empty if you like. Out-of-range or non-numeric values are rejected;
+a point more than 10 km from the rest of the tour is *accepted* but flagged in
+the PR (and the swapped lat/lng reading is suggested if that fits better).
+
+**Media.** Drag files straight into the **Body** box and they're downloaded,
+saved under `public/tours/<tour>/` and the links rewritten for you. Three more
+boxes cover the rest:
+
+- **Hero photo** — one image (+ a caption on the next line). Phones show the
+  live map instead of the hero, so it only appears on tablet/desktop.
+- **Photos & video** — drag files in; the line after each is its caption.
+- **Audio & 3D models** — GitHub's drag-and-drop doesn't reliably accept
+  `.mp3`/`.glb`, so attach a **`.zip`** of them (each file's name becomes its
+  caption), or write one `https://… | caption` per line.
+
+Anything in those boxes is appended to the body, or placed where you write
+`{{media}}` in the Body. Allowed types: png, jpg, webp, gif, mp4, mp3, glb
+(gltf works only if self-contained). Limits per file: 10 MB image, 20 MB
+audio/3D, 40 MB video (the whole tour is saved offline to a phone).
+
+**If something is wrong** the Action comments on the issue with every problem
+at once. **Edit the issue** and it runs again and updates the same PR — no
+need to open a new one.
+
+**Editing details worth knowing**
+- A filled **Body** replaces the whole body; new media is appended to the
+  existing one. Comments inside a stop's frontmatter are not preserved on edit.
+- Deleting a stop leaves its uploaded media in `public/tours/<tour>/`
+  (unreferenced, so it isn't added to the offline manifest).
+- Only collaborators with write access trigger it (the issue author *and*
+  whoever last edited it). Issues from anyone else are ignored.
+
+**Not possible from an issue:** the `.pmtiles` basemap (add it locally — the
+`map:` block is left commented out), editing tour-level fields after creation
+(edit `tour.yaml`), and reordering stops other than via **Insert after**.
+
+**One-time repo setup:** Settings → Actions → General → *Workflow
+permissions* → tick **Allow GitHub Actions to create and approve pull
+requests**. The issue forms only appear once they're on the default branch.
+
+**When you add a tour by any other route** (survey import, by hand) run
+`npm run content:sync-templates` so it appears in the forms' Tour dropdowns
+(a test fails until you do; the issue workflow does this itself for tours it
+creates).
+
+---
+
 ## Adding a second tour
 
 1. Create `content/routes/<new-tour>/tour.yaml` and `stops/` directory.
