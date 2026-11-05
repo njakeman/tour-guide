@@ -92,7 +92,7 @@ jobs:
           branch: content/issue-${{ github.event.issue.number }}
           base: ${{ github.event.repository.default_branch }}
           title: ${{ steps.gen.outputs.title }}
-          commit-message: ${{ steps.gen.outputs.title }} (from #${{ github.event.issue.number }})
+          commit-message: "${{ steps.gen.outputs.title }} (from #${{ github.event.issue.number }})"
           body-path: ${{ steps.gen.outputs.result_file }}
           add-paths: |
             content/
@@ -107,7 +107,10 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
           PR_URL: ${{ steps.cpr.outputs.pull-request-url }}
           OP: ${{ steps.cpr.outputs.pull-request-operation }}
-        run: gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Pull request ${OP}: ${PR_URL} — review and merge to publish."
+        # Block scalar: a plain one-line value can't contain ": " (YAML would
+        # read it as a nested mapping and GitHub would reject the whole file).
+        run: |
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Pull request ${OP}: ${PR_URL} — review and merge to publish."
 
       - name: Report a failure on the issue
         if: failure() && steps.perm.outputs.ok == 'true'

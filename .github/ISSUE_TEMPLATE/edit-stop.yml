@@ -18,7 +18,6 @@ body:
         - cissbury-ring
         - devil-s-dyke-circuit
         - mount-caburn
-        - testing-import-from-survey-tool
         - wolstonbury-hill
         # tours:end
     validations:

@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import matter from 'gray-matter'
@@ -534,12 +535,46 @@ describe('issue templates', () => {
     }
   })
 
-  it('Tour dropdown options match content/routes — run `npm run content:sync-templates` if this fails', () => {
-    const ids = listTourIds(join(process.cwd(), 'content'))
-    expect(ids.length).toBeGreaterThan(0)
+  it('Tour dropdowns list every committed tour and nothing that is missing from disk', () => {
+    // Deliberately not "equals the folder listing": an untracked local
+    // experiment under content/routes/ must not break the suite, and CI must
+    // still catch a dropdown that names a tour the repo doesn't have (the bug
+    // that failed the first deploy). `npm run content:sync-templates` fixes both.
+    const onDisk = listTourIds(join(process.cwd(), 'content'))
+    let tracked = onDisk
+    try {
+      tracked = execFileSync('git', ['ls-files', '--', 'content/routes'], { encoding: 'utf-8' })
+        .split(/\r?\n/)
+        .map((p) => /^content\/routes\/([^/]+)\/tour\.yaml$/.exec(p)?.[1])
+        .filter((id): id is string => Boolean(id))
+    } catch {
+      // not a git checkout — fall back to the folder listing
+    }
+    expect(tracked.length).toBeGreaterThan(0)
     for (const f of TEMPLATES_WITH_TOUR_DROPDOWN) {
+      const t = yaml.load(readFileSync(join(dir, f), 'utf-8')) as { body: { id?: string; attributes: { options?: string[] } }[] }
+      const options = t.body.find((i) => i.id === 'tour')!.attributes.options!
+      expect(options, `${f} is missing committed tours`).toEqual(expect.arrayContaining(tracked))
+      for (const o of options) expect(onDisk, `${f} lists "${o}", which is not in content/routes/`).toContain(o)
+      // generated region is still well-formed and idempotent for the options it holds
       const text = readFileSync(join(dir, f), 'utf-8')
-      expect(renderTemplate(text, ids), `${f} is out of date`).toBe(text)
+      expect(renderTemplate(text, options), `${f} region is malformed`).toBe(text)
+    }
+  })
+
+  it('the workflow file is valid YAML (GitHub rejects the whole file otherwise)', () => {
+    // Regression: a one-line `run:` containing ": " parsed as a nested mapping,
+    // so GitHub reported "workflow file issue" and never registered the workflow.
+    const wf = yaml.load(readFileSync(join(process.cwd(), '.github', 'workflows', 'content-from-issue.yml'), 'utf-8')) as {
+      name: string
+      on: { issues: { types: string[] } }
+      jobs: { generate: { steps: { run?: unknown; uses?: unknown }[] } }
+    }
+    expect(wf.name).toBe('Content from issue')
+    expect(wf.on.issues.types).toEqual(['opened', 'edited'])
+    for (const s of wf.jobs.generate.steps) {
+      if ('run' in s) expect(typeof s.run).toBe('string')
+      if ('uses' in s) expect(typeof s.uses).toBe('string')
     }
   })
 
