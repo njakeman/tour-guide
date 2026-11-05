@@ -527,6 +527,20 @@ describe('issue templates', () => {
     }
   })
 
+  it('every attribute value is a string — GitHub silently hides a form that fails its schema', () => {
+    // Regression: `placeholder: 50.8570` is a YAML *number*; GitHub rejected
+    // New tour and Add stop and showed only Edit stop in the chooser.
+    for (const f of readdirSync(dir).filter((n) => n !== 'config.yml')) {
+      const t = yaml.load(readFileSync(join(dir, f), 'utf-8')) as { body: { id?: string; type: string; attributes?: Record<string, unknown> }[] }
+      for (const item of t.body) {
+        for (const [k, v] of Object.entries(item.attributes ?? {})) {
+          if (k === 'options') continue
+          expect(typeof v, `${f}: ${item.id ?? item.type}.${k} must be a string, got ${JSON.stringify(v)}`).toBe('string')
+        }
+      }
+    }
+  })
+
   it('field labels are unique within each template (GitHub requires it)', () => {
     for (const f of readdirSync(dir).filter((n) => n !== 'config.yml')) {
       const t = yaml.load(readFileSync(join(dir, f), 'utf-8')) as { body: { type: string; attributes?: { label?: string } }[] }

@@ -41,7 +41,7 @@ body:
     attributes:
       label: Latitude
       description: Decimal degrees. You can paste a `lat, lng` pair copied from a maps app here and leave Longitude empty.
-      placeholder: 50.8570
+      placeholder: "50.8570"
     validations:
       required: true
   - type: input
